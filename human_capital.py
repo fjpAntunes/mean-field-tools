@@ -131,8 +131,16 @@ class HumanCapitalEconomicModelMFG():
         self.h_func = self._create_time_function(self.h_paths[i])
         self.k_func = self._create_time_function(self.k_paths[i])
         
-        self.k_paths[i] = self._integrate_k(k0)
-        self.h_paths[i] = self._integrate_h(h0)
+        k = self._integrate_k(k0)
+        h = self._integrate_h(h0)
+
+        delta_k = k - self.k_paths[i]
+        delta_h = h - self.h_paths[i]
+        self.delta_k_sup_norm = np.max(np.abs(delta_k))
+        self.delta_h_sup_norm = np.max(np.abs(delta_h))
+
+        self.k_paths[i] = k
+        self.h_paths[i] = h
 
     def shooting_backwards_step(self,i):
         kT = self.k_paths[i][-1]
@@ -143,6 +151,8 @@ class HumanCapitalEconomicModelMFG():
 
 
     def shooting_iteration(self):
+        self.delta_h_sup_norm = 0
+        self.delta_k_sup_norm = 0
         for i  in range(self.number_of_samples):
             self.shooting_forward_step(i)
             self.shooting_backwards_step(i)
@@ -193,3 +203,5 @@ class HumanCapitalEconomicModelMFG():
           print(f'loop { i+ 1}')
           self.shooting_iteration()
           self.update_mean_field_functions()
+          print(f'delta k sup norm: {self.delta_k_sup_norm}')
+          print(f'delta h sup norm: {self.delta_h_sup_norm}')
