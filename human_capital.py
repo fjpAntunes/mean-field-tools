@@ -37,8 +37,10 @@ class HumanCapitalEconomicModelMFG():
         self.delta, self.xi  =  (kwargs[name] for name in self.arg_list)
 
         self.number_of_samples = len(self.initial_capital_sample)
-
-
+        
+        initial_p = [], initial_q = []
+        self.initialize_parameters(initial_p=initial_p,initial_q=initial_q)
+        
     '''
     Utility functions
     '''
@@ -194,8 +196,7 @@ class HumanCapitalEconomicModelMFG():
         self.p_paths = [initial_p for _ in self.initial_capital_sample]
         self.q_paths = [initial_q for _ in self.initial_capital_sample]
  
-    def monte_carlo_shooting(self, number_of_iterations, initial_p = [], initial_q = []):
-        self.initialize_parameters(initial_p=initial_p,initial_q=initial_q)
+    def monte_carlo_shooting(self, number_of_iterations):
         for i in range(number_of_iterations):
           print(f'loop { i+ 1}')
           self.shooting_iteration()
