@@ -38,8 +38,7 @@ class HumanCapitalEconomicModelMFG():
 
         self.number_of_samples = len(self.initial_capital_sample)
         
-        initial_p = [], initial_q = []
-        self.initialize_parameters(initial_p=initial_p,initial_q=initial_q)
+        self.initialize_parameters()
         
     '''
     Utility functions
