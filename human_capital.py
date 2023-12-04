@@ -120,9 +120,6 @@ class HumanCapitalEconomicModelMFG():
         return h
 
     """Methods for iteratively solving k and p"""
-    #
-    # STILL NEED TO UPDATE THIS SECTION
-    #
     def shooting_forward_step(self, i):
         k0 = self.initial_capital_sample[i]
         h0 = self.initial_education_sample[i]
