@@ -17,6 +17,7 @@ class HumanCapitalEconomicModelMFG():
                  education_efficiency: Callable[[float], float],
                  capital_costate_terminal_condition : Callable[[float], float],
                  minimum_capital = -np.inf,
+                 damping_function : Callable[[float], float] = lambda x: 1,
                  **kwargs):
 
         self.time_domain = time_domain
@@ -36,8 +37,9 @@ class HumanCapitalEconomicModelMFG():
         self.arg_list = ['delta','xi']
         self.delta, self.xi  =  (kwargs[name] for name in self.arg_list)
 
-        self.number_of_samples = len(self.initial_capital_sample)
-        
+        self.number_of_samples = len(self.initial_capital_sample) 
+
+        self.damping_function = damping_function
         self.initialize_parameters()
         
     '''
@@ -121,6 +123,12 @@ class HumanCapitalEconomicModelMFG():
         return h
 
     """Methods for iteratively solving k and p"""
+    def update_path(self, new_path,previous_path):
+        new_weight = self.damping_function(self.iteration)
+        prev_weight = 1 - new_weight
+        return new_path*new_path + previous_path*prev_weight
+    
+    
     def shooting_forward_step(self, i):
         k0 = self.initial_capital_sample[i]
         h0 = self.initial_education_sample[i]
@@ -137,16 +145,19 @@ class HumanCapitalEconomicModelMFG():
         self.delta_k_sup_norm = np.max(np.abs(delta_k))
         self.delta_h_sup_norm = np.max(np.abs(delta_h))
 
-        self.k_paths[i] = k
-        self.h_paths[i] = h
+        self.k_paths[i] = self.update_path(k, self.k_paths[i])
+        self.h_paths[i] = self.update_path(h, self.h_paths[i])
 
     def shooting_backwards_step(self,i):
         kT = self.k_paths[i][-1]
         self.k_func = self._create_time_function(self.k_paths[i])
         self.h_func = self._create_time_function(self.h_paths[i]) 
-        self.p_paths[i] = self._integrate_p( kT)
-        self.q_paths[i] = self._integrate_q(0)
-
+        
+        p = self._integrate_p( kT)
+        q = self._integrate_q(0)
+        
+        self.p_paths[i] = self.update_path(p,self.p_paths[i])
+        self.q_paths[i] = self.update_path(q,self.q_paths[i])
 
     def shooting_iteration(self):
         self.delta_h_sup_norm = 0
@@ -194,9 +205,11 @@ class HumanCapitalEconomicModelMFG():
         self.h_paths = [sample*np.ones(size) for sample in self.initial_education_sample]        
         self.p_paths = [initial_p for _ in self.initial_capital_sample]
         self.q_paths = [initial_q for _ in self.initial_capital_sample]
- 
+        
+
     def monte_carlo_shooting(self, number_of_iterations):
         for i in range(number_of_iterations):
+          self.iteration = i
           print(f'loop { i+ 1}')
           self.shooting_iteration()
           self.update_mean_field_functions()
