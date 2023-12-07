@@ -68,7 +68,7 @@ class HumanCapitalEconomicModelMFG():
         """Differential for k
         """
         capital_gains = (self.bar_r_func(t) - self.delta)*k
-        work_effort = self.feedback_work_effort(self.p_func(t), self.q_func(t), self.bar_w_func(t))
+        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t))
         wage = self.bar_w_func(t)*self.h_func(t)*work_effort
         consumption = self.feedback_consumption(self.p_func(t))
 
@@ -79,7 +79,7 @@ class HumanCapitalEconomicModelMFG():
         return dot_k
 
     def _forward_dot_h(self,h,t):
-        work_effort = self.feedback_work_effort(self.p_func(t), self.q_func(t), self.bar_w_func(t))
+        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t))
         dot_h = np.power(h,self.xi)*self.education_efficiency(1 - work_effort)
 
         return dot_h
@@ -92,7 +92,7 @@ class HumanCapitalEconomicModelMFG():
         return dot_p
 
     def _backward_dot_q(self, q, t):
-        work_effort = self.feedback_work_effort(self.p_func(t), self.q_func(t), self.bar_w_func(t))
+        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t))
         p_term = self.bar_w_func(t)*work_effort
         q_term = self.xi * np.power(self.h_func(t), self.xi - 1) * self.education_efficiency( 1 - work_effort)
 
@@ -177,7 +177,7 @@ class HumanCapitalEconomicModelMFG():
             p = self.p_paths[i]
             q = self.q_paths[i]
             h = self.h_paths[i]
-            effective_h = self.feedback_work_effort(p,q, self.bar_w) * h
+            effective_h = self.feedback_work_effort(h,p,q, self.bar_w) * h
             self.hat_h = self.hat_h + effective_h / self.number_of_samples
         
         self.bar_r = self.mean_field_interest_rate(self.hat_k, self.hat_h)
