@@ -94,7 +94,7 @@ class HumanCapitalEconomicModelMFG():
     def _backward_dot_q(self, q, t):
         work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t))
         p_term = self.bar_w_func(t)*work_effort
-        q_term = self.xi * np.power(self.h_func(t), self.xi - 1) * self.education_efficiency( 1 - work_effort)
+        q_term = np.power(self.h_func(t), self.xi) * self.education_efficiency( 1 - work_effort)
 
         return - (p_term*self.p_func(t) + q_term*q)
 
