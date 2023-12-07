@@ -41,6 +41,7 @@ class HumanCapitalEconomicModelMFG():
 
         self.damping_function = damping_function
         self.initialize_parameters()
+        self.iteration = 0
         
     '''
     Utility functions
