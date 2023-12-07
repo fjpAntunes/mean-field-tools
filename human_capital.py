@@ -186,7 +186,7 @@ class HumanCapitalEconomicModelMFG():
         self.bar_r = self.bar_r + self.delta_bar_r
         self.bar_r_func = self._create_time_function(self.bar_r)
         
-        self.delta_bar_w = self.mean_field_wage_rate(self.hat_k, self.hat_h) - self.delta_bar_w
+        self.delta_bar_w = self.mean_field_wage_rate(self.hat_k, self.hat_h) - self.bar_w
         self.delta_bar_w_sup_norm = np.max(np.abs(self.delta_bar_w))
         self.bar_w = self.bar_w +  self.delta_bar_w
         self.bar_w_func = self._create_time_function(self.bar_w)
