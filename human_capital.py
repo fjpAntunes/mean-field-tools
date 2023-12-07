@@ -180,10 +180,14 @@ class HumanCapitalEconomicModelMFG():
             effective_h = self.feedback_work_effort(h,p,q, self.bar_w) * h
             self.hat_h = self.hat_h + effective_h / self.number_of_samples
         
-        self.bar_r = self.mean_field_interest_rate(self.hat_k, self.hat_h)
+        self.delta_bar_r = self.mean_field_interest_rate(self.hat_k, self.hat_h) -self.bar_r
+        self.delta_bar_r_sup_norm = np.max(np.abs(self.delta_bar_r))
+        self.bar_r = self.bar_r + self.delta_bar_r
         self.bar_r_func = self._create_time_function(self.bar_r)
         
-        self.bar_w = self.mean_field_wage_rate(self.hat_k, self.hat_h)
+        self.delta_bar_w = self.mean_field_wage_rate(self.hat_k, self.hat_h) - self.delta_bar_w
+        self.delta_bar_w_sup_norm = np.max(np.abs(self.delta_bar_w))
+        self.bar_w = self.bar_w +  self.delta_bar_w
         self.bar_w_func = self._create_time_function(self.bar_w)
 
     def initialize_parameters(self, initial_p = [], initial_q = []):
@@ -208,10 +212,12 @@ class HumanCapitalEconomicModelMFG():
         
 
     def monte_carlo_shooting(self, number_of_iterations):
-        for i in range(number_of_iterations):
+        for i in range(self.iteration, self.iteration + number_of_iterations):
           self.iteration = i
           print(f'loop { i+ 1}')
           self.shooting_iteration()
           self.update_mean_field_functions()
           print(f'delta k sup norm: {self.delta_k_sup_norm}')
           print(f'delta h sup norm: {self.delta_h_sup_norm}')
+          print(f'delta bar r sup norm: {self.delta_bar_r_sup_norm}')
+          print(f'delta bar w sup norm: {self.delta_bar_w_sup_norm}')
