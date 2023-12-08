@@ -82,7 +82,6 @@ class HumanCapitalEconomicModelMFG():
     def _forward_dot_h(self,h,t):
         work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t), self.xi)
         dot_h = np.power(h,self.xi)*self.education_efficiency(1 - work_effort)
-
         return dot_h
 
     def _backward_dot_p(self, p, t):
@@ -173,20 +172,22 @@ class HumanCapitalEconomicModelMFG():
         for k in self.k_paths:
             self.hat_k = self.hat_k + k / self.number_of_samples
         
+        self.hat_h_eff = 0
         self.hat_h = 0
         for i in range(self.number_of_samples):
             p = self.p_paths[i]
             q = self.q_paths[i]
             h = self.h_paths[i]
+            self.hat_h = self.hat_h + h /self.number_of_samples
             effective_h = self.feedback_work_effort(h,p,q, self.bar_w, self.xi) * h
-            self.hat_h = self.hat_h + effective_h / self.number_of_samples
+            self.hat_h_eff = self.hat_h_eff + effective_h / self.number_of_samples
         
-        self.delta_bar_r = self.mean_field_interest_rate(self.hat_k, self.hat_h) -self.bar_r
+        self.delta_bar_r = self.mean_field_interest_rate(self.hat_k, self.hat_h_eff) -self.bar_r
         self.delta_bar_r_sup_norm = np.max(np.abs(self.delta_bar_r))
         self.bar_r = self.bar_r + self.delta_bar_r
         self.bar_r_func = self._create_time_function(self.bar_r)
         
-        self.delta_bar_w = self.mean_field_wage_rate(self.hat_k, self.hat_h) - self.bar_w
+        self.delta_bar_w = self.mean_field_wage_rate(self.hat_k, self.hat_h_eff) - self.bar_w
         self.delta_bar_w_sup_norm = np.max(np.abs(self.delta_bar_w))
         self.bar_w = self.bar_w +  self.delta_bar_w
         self.bar_w_func = self._create_time_function(self.bar_w)
