@@ -69,7 +69,7 @@ class HumanCapitalEconomicModelMFG():
         """Differential for k
         """
         capital_gains = (self.bar_r_func(t) - self.delta)*k
-        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t))
+        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t), self.xi)
         wage = self.bar_w_func(t)*self.h_func(t)*work_effort
         consumption = self.feedback_consumption(self.p_func(t))
 
@@ -80,7 +80,7 @@ class HumanCapitalEconomicModelMFG():
         return dot_k
 
     def _forward_dot_h(self,h,t):
-        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t))
+        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t), self.xi)
         dot_h = np.power(h,self.xi)*self.education_efficiency(1 - work_effort)
 
         return dot_h
@@ -93,7 +93,7 @@ class HumanCapitalEconomicModelMFG():
         return dot_p
 
     def _backward_dot_q(self, q, t):
-        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t))
+        work_effort = self.feedback_work_effort(self.h_func(t), self.p_func(t), self.q_func(t), self.bar_w_func(t), self.xi)
         p_term = self.bar_w_func(t)*work_effort
         q_term = np.power(self.h_func(t), self.xi) * self.education_efficiency( 1 - work_effort)
 
@@ -178,7 +178,7 @@ class HumanCapitalEconomicModelMFG():
             p = self.p_paths[i]
             q = self.q_paths[i]
             h = self.h_paths[i]
-            effective_h = self.feedback_work_effort(h,p,q, self.bar_w) * h
+            effective_h = self.feedback_work_effort(h,p,q, self.bar_w, self.xi) * h
             self.hat_h = self.hat_h + effective_h / self.number_of_samples
         
         self.delta_bar_r = self.mean_field_interest_rate(self.hat_k, self.hat_h) -self.bar_r
@@ -214,7 +214,7 @@ class HumanCapitalEconomicModelMFG():
 
     def monte_carlo_shooting(self, number_of_iterations):
         for i in range(self.iteration, self.iteration + number_of_iterations):
-          self.iteration = i
+          self.iteration = i + 1
           print(f'loop { i+ 1}')
           self.shooting_iteration()
           self.update_mean_field_functions()
