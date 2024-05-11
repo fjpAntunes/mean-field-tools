@@ -44,5 +44,14 @@ class FokkerPlanckEquation:
 
         return sum(partials)
 
-    def _calculate_second_derivative_term(scalar_field):
-        pass
+    def _calculate_second_derivative_term(self, scalar_field, flag = False):
+        grad = np.gradient(scalar_field, self.tolerance)
+        if self.number_of_dimensions > 1:
+            hessian = []
+            for partial in grad:
+                hessian.append(np.gradient(partial, self.tolerance))
+            hessian = np.array(hessian)
+        else:
+            hessian = np.gradient(grad, self.tolerance)
+        if flag: import pdb; pdb.set_trace()
+        return hessian
