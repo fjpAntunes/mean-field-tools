@@ -3,13 +3,15 @@ from finite_differences.fokker_planck import FokkerPlanckEquation
 
 ONE_DIM_DOMAIN = np.linspace(0,1,1_000)
 TIME_DOMAIN = np.linspace(0,1,1_000)
+TOLERANCE = TIME_DOMAIN[1] - TIME_DOMAIN[0]
 one_dim_fokker_planck = FokkerPlanckEquation(
-space_domain=ONE_DIM_DOMAIN,
+space_domain=[ONE_DIM_DOMAIN],
 time_domain=TIME_DOMAIN,
 vector_field=[ONE_DIM_DOMAIN],
 initial_condition=np.array([1] + [0]*999),
 volatility=1,
-number_of_dimensions=1
+number_of_dimensions=1,
+tolerance=TOLERANCE
 )
 
 def test_calculate_divergence_term_one_dim_linear():
@@ -31,8 +33,8 @@ two_dim_fokker_planck = FokkerPlanckEquation(
     vector_field=TWO_DIM_DOMAIN,
     initial_condition=np.zeros_like(TWO_DIM_DOMAIN[0]),
     volatility=np.array([1,1]),
-    number_of_dimensions=2,
-    tolerance=1e-3
+    number_of_dimensions= 2,
+    tolerance=TOLERANCE
 )
 
 def test_calculate_divergence_term_two_dim_test():
