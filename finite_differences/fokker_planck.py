@@ -44,7 +44,7 @@ class FokkerPlanckEquation:
 
         return sum(partials)
 
-    def _calculate_second_derivative_term(self, scalar_field, flag = False):
+    def _calculate_second_derivative_term(self, scalar_field):
         grad = np.gradient(scalar_field, self.tolerance)
         if self.number_of_dimensions > 1:
             hessian = []
@@ -53,5 +53,17 @@ class FokkerPlanckEquation:
             hessian = np.array(hessian)
         else:
             hessian = np.gradient(grad, self.tolerance)
-        if flag: import pdb; pdb.set_trace()
         return hessian
+
+    def _calculate_time_derivative(self, scalar_field):
+        divergence = self._calculate_divergence_term(scalar_field)
+        hessian = self._calculate_second_derivative_term(scalar_field)
+        if self.number_of_dimensions == 1:
+            time_derivative = -divergence + self.volatility * hessian
+        else:
+            time_derivative = -divergence
+            for i in range(self.number_of_dimensions):
+                time_derivative = (
+                    time_derivative + self.volatility[i] * hessian[i, i, :, :]
+                )
+        return time_derivative
