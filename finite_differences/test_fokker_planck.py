@@ -8,7 +8,7 @@ one_dim_fokker_planck = FokkerPlanckEquation(
     space_domain=[ONE_DIM_DOMAIN],
     time_domain=TIME_DOMAIN,
     vector_field=[ONE_DIM_DOMAIN],
-    initial_condition=np.array([1] + [0] * 999),
+    initial_condition=np.array([0]*498 + [0.5,1,1,0.5] + [0]*498),
     volatility=1,
     number_of_dimensions=1,
     tolerance=TOLERANCE,
@@ -35,9 +35,7 @@ def test_calculate_time_derivative_one_dim_linear():
     output = one_dim_fokker_planck._calculate_time_derivative(ONE_DIM_LINEAR_SCALAR)
     np.testing.assert_almost_equal(output, -2 * ONE_DIM_DOMAIN, decimal=2)
 
-
 ONE_DIM_QUADRATIC_SCALAR = ONE_DIM_DOMAIN**2
-
 
 def test_calculate_divergence_term_one_dim_test_quadratic():
     output = one_dim_fokker_planck._calculate_divergence_term(ONE_DIM_QUADRATIC_SCALAR)

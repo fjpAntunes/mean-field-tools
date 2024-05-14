@@ -37,7 +37,7 @@ class FokkerPlanckEquation:
         partials = []
         for dimension, field in enumerate(self.vector_field):
             dislocation = scalar_field * field
-            partial = np.gradient(dislocation, self.tolerance)
+            partial = np.gradient(dislocation, self.tolerance, edge_order=2)
             if self.number_of_dimensions > 1:
                 partial = partial[dimension]
             partials.append(partial)
@@ -49,10 +49,10 @@ class FokkerPlanckEquation:
         if self.number_of_dimensions > 1:
             hessian = []
             for partial in grad:
-                hessian.append(np.gradient(partial, self.tolerance))
+                hessian.append(np.gradient(partial, self.tolerance, edge_order=2))
             hessian = np.array(hessian)
         else:
-            hessian = np.gradient(grad, self.tolerance)
+            hessian = np.gradient(grad, self.tolerance, edge_order=2)
         return hessian
 
     def _calculate_time_derivative(self, scalar_field):
@@ -67,3 +67,20 @@ class FokkerPlanckEquation:
                     time_derivative + self.volatility[i] * hessian[i, i, :, :]
                 )
         return time_derivative
+
+    def _calculate_updated_scalar_field(self, scalar_field, time_derivative, step):
+        return scalar_field + time_derivative*step
+    
+    def _integrate_over_time(self):
+        timestep = self.time_domain[1] - self.time_domain[0]
+        scalar_field = self.initial_condition
+        time_solution = [scalar_field]
+        for _ in self.time_domain:
+            time_derivative = self._calculate_time_derivative(scalar_field)
+            scalar_field = self._calculate_updated_scalar_field(scalar_field, time_derivative, timestep)
+            time_solution.append(scalar_field)
+
+        return np.array(time_solution)
+    
+    
+        
