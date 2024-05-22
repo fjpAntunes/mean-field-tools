@@ -1,0 +1,1 @@
+from finite_differences.fokker_planck import FokkerPlanckEquation

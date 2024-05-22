@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "mean-field-tools"
+version = "0.1.0"
+description = "Tools for numerical simulations of mean field games"
+authors = ["Felipe <felipe.antunes@lemon.energy>"]
+readme = "README.md"
+packages = [{include = "mean_field_tools"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.26.4"
+black = "^24.4.2"
+pytest = "^8.2.0"
+scipy = "^1.13.0"
+matplotlib = "^3.8.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
