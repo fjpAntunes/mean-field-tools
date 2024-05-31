@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 class FunctionApproximator(nn.Module):
 
