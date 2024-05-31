@@ -1,7 +1,7 @@
-from human_capital import HumanCapitalEconomicModelMFG
+from human_capital.human_capital import HumanCapitalEconomicModelMFG
 import numpy as np
 
-from human_capital import HumanCapitalEconomicModelMFG
+from human_capital.human_capital import HumanCapitalEconomicModelMFG
 import numpy as np
 
 
