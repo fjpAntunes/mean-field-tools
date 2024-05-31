@@ -13,7 +13,14 @@ black = "^24.4.2"
 pytest = "^8.2.0"
 scipy = "^1.13.0"
 matplotlib = "^3.8.4"
+torch = {version = "^2.3.0+cpu", source = "pytorch_cpu"}
+tqdm = "^4.66.4"
 
+
+[[tool.poetry.source]]
+name = "pytorch_cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]
