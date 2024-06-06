@@ -60,7 +60,7 @@ class FunctionApproximator(nn.Module):
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
         batch_size=512,
         number_of_iterations=10_000,
-        number_of_epochs = 100,
+        number_of_epochs=100,
         number_of_plots=10,
         plotting=False,
         save_figures=False,
@@ -76,8 +76,8 @@ class FunctionApproximator(nn.Module):
         self.loss_history = []
         self.loss_recent_history = []
 
-        for j in range(1,number_of_epochs + 1):
-            print(f'Epoch {j}')
+        for j in range(1, number_of_epochs + 1):
+            print(f"Epoch {j}")
             batch_index = torch.randperm(sample_size)[:batch_size]
             batch_sample = sample[batch_index, :, :].to(self.device)
             batch_target = target[batch_index, :, :].to(self.device)
@@ -96,21 +96,20 @@ class FunctionApproximator(nn.Module):
                 self.plot_loss_history(j)
                 self.plot_terminal_fit(batch_sample, batch_target, j)
                 self.plot_sample_paths(batch_sample, j)
-    
+
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)
         if len(self.loss_recent_history) == window_size:
             self.loss_history.append(np.mean(self.loss_recent_history))
             self.loss_recent_history.pop(0)
 
-
     def plot_loss_history(self, number):
         fig, axs = plt.subplots()
         iteration = range(len(self.loss_history))
         axs.plot(iteration, self.loss_history)
-        axs.set_yscale('log')        
+        axs.set_yscale("log")
         if self.save_figures:
-            plt.savefig(f'./.figures/loss_plot_{number}')
+            plt.savefig(f"./.figures/loss_plot_{number}")
         else:
             plt.plot()
             plt.show()
@@ -129,15 +128,15 @@ class FunctionApproximator(nn.Module):
             plt.show()
         plt.close()
 
-    def plot_terminal_fit(self, sample, target, number): 
-        fig, axs = plt.subplots(1,3, figsize = (12,3))
+    def plot_terminal_fit(self, sample, target, number):
+        fig, axs = plt.subplots(1, 3, figsize=(12, 3))
         _, time_length, _ = sample.shape
-        for i,time_index in enumerate([0, time_length // 2, time_length-1]):
-            x = sample[:,time_index, 1]
-            T = sample[0,-1,0].detach().cpu().numpy()
+        for i, time_index in enumerate([0, time_length // 2, time_length - 1]):
+            x = sample[:, time_index, 1]
+            T = sample[0, -1, 0].detach().cpu().numpy()
             t = T * (time_index / time_length)
             y_hat = self(sample)[:, time_index, 0]
-    
+
             x = x.reshape(-1).detach().cpu().numpy()
             y_hat = y_hat.reshape(-1).detach().cpu().numpy()
             y = x**2 + (T - t)
