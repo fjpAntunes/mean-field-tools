@@ -60,7 +60,8 @@ class FunctionApproximator(nn.Module):
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
         batch_size=512,
         number_of_iterations=10_000,
-        steps_between_plots=1_000,
+        number_of_epochs = 100,
+        number_of_plots=10,
         plotting=False,
         save_figures=False,
     ):
@@ -74,24 +75,27 @@ class FunctionApproximator(nn.Module):
         sample_size = sample.shape[0]
         self.loss_history = []
         self.loss_recent_history = []
-        for i in tqdm(range(number_of_iterations)):
+
+        for j in range(1,number_of_epochs + 1):
+            print(f'Epoch {j}')
             batch_index = torch.randperm(sample_size)[:batch_size]
             batch_sample = sample[batch_index, :, :].to(self.device)
             batch_target = target[batch_index, :, :].to(self.device)
-            estimated = self(batch_sample)
+            for i in tqdm(range(number_of_iterations // number_of_epochs)):
+                estimated = self(batch_sample)
 
-            empirical_loss = torch.mean(scoring(estimated, batch_target))
-            self.optimizer.zero_grad()
-            empirical_loss.backward()
-            self.optimizer.step()
-            self.scheduler.step()
+                empirical_loss = torch.mean(scoring(estimated, batch_target))
+                self.optimizer.zero_grad()
+                empirical_loss.backward()
+                self.optimizer.step()
+                self.scheduler.step()
 
-            self._append_loss_moving_average(empirical_loss.item(), window_size=100)
+                self._append_loss_moving_average(empirical_loss.item(), window_size=100)
 
-            if plotting and np.mod(i, steps_between_plots) == 0:
-                self.plot_loss_history(i)
-                self.plot_terminal_fit(batch_sample, batch_target, i)
-                self.plot_sample_paths(batch_sample, i)
+            if plotting and np.mod(j, number_of_epochs // number_of_plots) == 0:
+                self.plot_loss_history(j)
+                self.plot_terminal_fit(batch_sample, batch_target, j)
+                self.plot_sample_paths(batch_sample, j)
     
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)
@@ -109,6 +113,8 @@ class FunctionApproximator(nn.Module):
             plt.savefig(f'./.figures/loss_plot_{number}')
         else:
             plt.plot()
+            plt.show()
+        plt.close()
 
     def plot_sample_paths(self, sample, number):
         fig, axs = plt.subplots()
@@ -120,17 +126,21 @@ class FunctionApproximator(nn.Module):
             plt.savefig(f"./.figures/sample_path_{number}.png")
         else:
             plt.plot()
+            plt.show()
+        plt.close()
 
     def plot_terminal_fit(self, sample, target, number): 
         fig, axs = plt.subplots(1,3, figsize = (12,3))
         _, time_length, _ = sample.shape
-        for i,t in enumerate([0, time_length // 2, time_length-1]):
-            x = sample[:,t, 1]
-            y_hat = self(sample)[:, t, 0]
+        for i,time_index in enumerate([0, time_length // 2, time_length-1]):
+            x = sample[:,time_index, 1]
+            T = sample[0,-1,0].detach().cpu().numpy()
+            t = T * (time_index / time_length)
+            y_hat = self(sample)[:, time_index, 0]
     
             x = x.reshape(-1).detach().cpu().numpy()
             y_hat = y_hat.reshape(-1).detach().cpu().numpy()
-            y = target[:, t].reshape(-1).detach().cpu().numpy()
+            y = x**2 + (T - t)
 
             axs[i].set_ylim(0, 2)
             axs[i].set_xlim(-1.5, 1.5)
@@ -140,3 +150,5 @@ class FunctionApproximator(nn.Module):
             plt.savefig(f"./.figures/fit_plot_{number}.png")
         else:
             plt.plot()
+            plt.show()
+        plt.close()
