@@ -128,9 +128,9 @@ class FunctionApproximator(nn.Module):
             x = sample[:,t, 1]
             y_hat = self(sample)[:, t, 0]
     
-            x = x.reshape(-1).detach().numpy()
-            y_hat = y_hat.reshape(-1).detach().numpy()
-            y = target[:, t].reshape(-1).detach().numpy()
+            x = x.reshape(-1).detach().cpu().numpy()
+            y_hat = y_hat.reshape(-1).detach().cpu().numpy()
+            y = target[:, t].reshape(-1).detach().cpu().numpy()
 
             axs[i].set_ylim(0, 2)
             axs[i].set_xlim(-1.5, 1.5)
