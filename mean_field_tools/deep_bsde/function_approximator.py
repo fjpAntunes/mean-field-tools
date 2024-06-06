@@ -96,7 +96,7 @@ class FunctionApproximator(nn.Module):
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)
         if len(self.loss_recent_history) == window_size:
-            self.loss_history.append(torch.mean(self.loss_recent_history).detach().cpu().numpy())
+            self.loss_history.append(np.mean(self.loss_recent_history))
             self.loss_recent_history.pop(0)
 
 
