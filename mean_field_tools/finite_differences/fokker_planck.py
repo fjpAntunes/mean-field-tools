@@ -69,8 +69,8 @@ class FokkerPlanckEquation:
         return time_derivative, divergence, hessian
 
     def _calculate_updated_scalar_field(self, scalar_field, time_derivative, step):
-        return scalar_field + time_derivative*step
-    
+        return scalar_field + time_derivative * step
+
     def _integrate_over_time(self):
         timestep = self.time_domain[1] - self.time_domain[0]
         scalar_field = self.initial_condition
@@ -79,14 +79,20 @@ class FokkerPlanckEquation:
         divergences = []
         hessians = []
         for _ in self.time_domain:
-            time_derivative, divergence, hessian = self._calculate_time_derivative(scalar_field)
+            time_derivative, divergence, hessian = self._calculate_time_derivative(
+                scalar_field
+            )
             time_derivatives.append(time_derivative)
             divergences.append(divergence)
             hessians.append(hessian)
-            scalar_field = self._calculate_updated_scalar_field(scalar_field, time_derivative, timestep)
+            scalar_field = self._calculate_updated_scalar_field(
+                scalar_field, time_derivative, timestep
+            )
             solution.append(scalar_field)
 
-        return np.array(solution), np.array(time_derivatives), np.array(divergences), np.array(hessians)
-    
-    
-        
+        return (
+            np.array(solution),
+            np.array(time_derivatives),
+            np.array(divergences),
+            np.array(hessians),
+        )
