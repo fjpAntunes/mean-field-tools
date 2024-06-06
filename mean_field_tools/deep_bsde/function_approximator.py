@@ -18,7 +18,7 @@ class FunctionApproximator(nn.Module):
         optimizer_params={"lr": 0.005},
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
-        device="cpu"
+        device="cpu",
     ):
 
         super(FunctionApproximator, self).__init__()
@@ -32,7 +32,7 @@ class FunctionApproximator(nn.Module):
         }
 
         self.device = device
-        
+
         self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
         self.hidden = nn.ModuleList(
             [
@@ -62,7 +62,7 @@ class FunctionApproximator(nn.Module):
         number_of_iterations=10_000,
         steps_between_plots=1_000,
         plotting=False,
-        save_figures = False,
+        save_figures=False,
     ):
         self.save_figures = save_figures
         self.optimizer = self.sgd_parameters["optimizer"](
@@ -74,8 +74,8 @@ class FunctionApproximator(nn.Module):
         sample_size = sample.shape[0]
         for i in tqdm(range(number_of_iterations)):
             batch_index = torch.randperm(sample_size)[:batch_size]
-            batch_sample = sample[batch_index,:,:]
-            batch_target = target[batch_index,:,:]
+            batch_sample = sample[batch_index, :, :]
+            batch_target = target[batch_index, :, :]
             self.loss_history = []
             estimated = self(batch_sample)
 
@@ -91,34 +91,33 @@ class FunctionApproximator(nn.Module):
                 self.plot_loss_history()
                 self.plot_terminal_fit(batch_sample, batch_target, i)
                 self.plot_sample_paths(batch_sample, i)
-            
+
     def plot_loss_history(self):
         pass
 
     def plot_sample_paths(self, sample, number):
         fig, axs = plt.subplots()
-        t = sample[0,:,0]
+        t = sample[0, :, 0]
         for i in range(sample.shape[0]):
-            x = sample[i,:,1]
-            axs.plot(t,x)
+            x = sample[i, :, 1]
+            axs.plot(t, x)
         if self.save_figures:
-            plt.savefig(f'./.figures/sample_path_{number}.png')
-
+            plt.savefig(f"./.figures/sample_path_{number}.png")
 
     def plot_terminal_fit(self, sample, target, number):
-        x = sample[:,-1,1]
-        y_hat = self(sample)[:,-1,0]
+        x = sample[:, -1, 1]
+        y_hat = self(sample)[:, -1, 0]
 
         x = x.reshape(-1).detach().numpy()
         y_hat = y_hat.reshape(-1).detach().numpy()
-        y = target[:,-1].reshape(-1).detach().numpy()
+        y = target[:, -1].reshape(-1).detach().numpy()
 
         fig, axs = plt.subplots()
-        axs.set_ylim(0,2)
-        axs.set_xlim(-1.5,1.5)
+        axs.set_ylim(0, 2)
+        axs.set_xlim(-1.5, 1.5)
         axs.scatter(x, y, color="r", s=0.5)
         axs.scatter(x, y_hat, color="b", s=0.5)
         if self.save_figures:
-            plt.savefig(f'./.figures/fit_plot_{number}.png')
+            plt.savefig(f"./.figures/fit_plot_{number}.png")
         else:
             plt.plot()
