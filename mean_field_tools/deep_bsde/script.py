@@ -22,8 +22,8 @@ bsde.initialize_approximator()
 bsde.solve(
     approximator_args={
         "batch_size": 100,
-        "number_of_iterations": 1000,
-        "steps_between_plots": 100,
+        "number_of_iterations": 5001,
+        "steps_between_plots": 1000,
         "plotting": True,
         "save_figures": True,
     }
