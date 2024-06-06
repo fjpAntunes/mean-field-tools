@@ -76,8 +76,8 @@ class FunctionApproximator(nn.Module):
         self.loss_recent_history = []
         for i in tqdm(range(number_of_iterations)):
             batch_index = torch.randperm(sample_size)[:batch_size]
-            batch_sample = sample[batch_index, :, :]
-            batch_target = target[batch_index, :, :]
+            batch_sample = sample[batch_index, :, :].to(self.device)
+            batch_target = target[batch_index, :, :].to(self.device)
             estimated = self(batch_sample)
 
             empirical_loss = torch.mean(scoring(estimated, batch_target))
