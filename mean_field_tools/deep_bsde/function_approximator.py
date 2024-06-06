@@ -96,7 +96,7 @@ class FunctionApproximator(nn.Module):
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)
         if len(self.loss_recent_history) == window_size:
-            self.loss_history.append(np.mean(self.loss_recent_history))
+            self.loss_history.append(torch.mean(self.loss_recent_history).detach().cpu().numpy())
             self.loss_recent_history.pop(0)
 
 
@@ -112,9 +112,9 @@ class FunctionApproximator(nn.Module):
 
     def plot_sample_paths(self, sample, number):
         fig, axs = plt.subplots()
-        t = sample[0, :, 0]
+        t = sample[0, :, 0].detach().cpu().numpy()
         for i in range(sample.shape[0]):
-            x = sample[i, :, 1]
+            x = sample[i, :, 1].detach().cpu().numpy()
             axs.plot(t, x)
         if self.save_figures:
             plt.savefig(f"./.figures/sample_path_{number}.png")
