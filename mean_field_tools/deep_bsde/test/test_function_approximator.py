@@ -1,28 +1,38 @@
+from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
 import torch
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
 
 torch.manual_seed(0)
 
-# Test different input shapes
+NUMBER_OF_TIMESTEPS = 101
+TIME_DOMAIN = torch.linspace(0, 1, NUMBER_OF_TIMESTEPS)
+NUMBER_OF_PATHS = 100
+SPATIAL_DIMENSIONS = 1
 
-# Test different output shapes
+TERMINAL_CONDITION = lambda x: x**2
 
-# Test different scoring functions
+filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS)
+filtration.generate_paths()
 
+bsde = BackwardSDE(
+    spatial_dimensions=SPATIAL_DIMENSIONS,
+    time_domain=TIME_DOMAIN,
+    terminal_condition_function=TERMINAL_CONDITION,
+    filtration=filtration,
+)
 
-# Test simple fit
-def test_different_input_shapes():
-    sampler = lambda batch_size: torch.linspace(-1, 1, 101).reshape(-1, 1)
-    target = (sampler(1)) ** 2
+bsde.initialize_approximator()
 
-    approximator = FunctionApproximator(
-        domain_dimension=1, output_dimension=1, number_of_layers=5
-    )
-    approximator.minimize_over_sample(sampler, target, number_of_iterations=100)
-    x = sampler(1)
-    torch.testing.assert_close(
-        expected=torch.zeros_like(target),
-        actual=approximator(x) - target,
-        atol=5e-2,
-        rtol=0.1,
-    )
+approximate_solution = bsde.solve(
+    approximator_args={
+        "batch_size": 100,
+        "number_of_iterations": 500,
+        "number_of_epochs": 5,
+        "number_of_plots": 5,
+        "plotting": False,
+        "save_figures": False,
+    }
+)
+
+def test_approximate_solution_shape():
+    assert approximate_solution.shape == (NUMBER_OF_PATHS, NUMBER_OF_TIMESTEPS, SPATIAL_DIMENSIONS)
+

@@ -46,12 +46,13 @@ class BackwardSDE:
         terminal_condition_function,  # Callable over space dimensions
         # exogenous_process,
         filtration: Filtration,
-        # drift = None, # Callable over (t,x)
+        drift = lambda x: x[:,:,0]*0, # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
         self.spatial_dimensions = spatial_dimensions
         self.time_domain = time_domain
+        self.dt = self.time_domain[1] - self.time_domain[0]
         self.terminal_condition_function = terminal_condition_function
-        # self.drift = drift
+        self.drift = drift
         # self.exogenous_process = exogenous_process
         self.filtration = filtration
 
@@ -61,21 +62,24 @@ class BackwardSDE:
         )
 
     def generate_paths(self):
-        # self.exogenous_paths = self.exogenous_process(self.time_domain, self.filtration.brownian_paths)
-        # self.solution_paths = self.y_approximator(self.time_domain, self.exogenous_paths)
-        # self.solution_terminal_condition = self.terminal_condition(self.exogenous_paths[:,-1,:])
-        pass
+        return self.y_approximator(self.filtration.brownian_paths)
 
     # def path_sampler(self, number_of_samples):
     #    indexes = torch.perm(self.filtration.number_of_paths)[:number_of_samples]
     #    return self.solution_paths[indexes,:,:]
 
+    def set_drift_path(self):
+        self.drift_path = self.drift(self.filtration.brownian_paths).unsqueeze(-1)
+        self.drift_integral = torch.cumsum(self.drift_path * self.dt, dim = 1).unsqueeze(-1)
+        return self.drift_path, self.drift_integral
+
     def set_terminal_condition(self, terminal_brownian):
         self.terminal_condition = self.terminal_condition_function(terminal_brownian)
         return self.terminal_condition
 
-    def set_optimization_target(self, terminal_condition):
-        optimization_target = terminal_condition.repeat(
+    def set_optimization_target(self, terminal_condition, drift_integral):
+        optimization_target = terminal_condition + drift_integral[:,-1,:].squeeze()   
+        optimization_target = optimization_target.repeat(
             repeats=(1, 1, len(self.time_domain))
         )
         optimization_target = optimization_target.reshape(
@@ -89,9 +93,12 @@ class BackwardSDE:
         return optimization_target
 
     def solve(self, approximator_args: dict = None):
+        _, drift_integral = self.set_drift_path()
         terminal_brownian = self.filtration.brownian_paths[:, -1, 1]
         terminal_condition = self.set_terminal_condition(terminal_brownian)
-        optimization_target = self.set_optimization_target(terminal_condition)
+        optimization_target = self.set_optimization_target(terminal_condition, drift_integral)
         self.y_approximator.minimize_over_sample(
             self.filtration.brownian_paths, optimization_target, **approximator_args
         )
+
+        return self.generate_paths()

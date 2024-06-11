@@ -55,7 +55,7 @@ class FunctionApproximator(nn.Module):
 
     def minimize_over_sample(
         self,
-        sample,  # Callable - receives int n and generates n samples with shape : (sample_size, domain_dimension)
+        sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
         target,  # shape :  (output_dimension, sample_size)
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
         batch_size=512,
