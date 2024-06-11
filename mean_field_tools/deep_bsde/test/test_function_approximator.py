@@ -33,6 +33,10 @@ approximate_solution = bsde.solve(
     }
 )
 
-def test_approximate_solution_shape():
-    assert approximate_solution.shape == (NUMBER_OF_PATHS, NUMBER_OF_TIMESTEPS, SPATIAL_DIMENSIONS)
 
+def test_approximate_solution_shape():
+    assert approximate_solution.shape == (
+        NUMBER_OF_PATHS,
+        NUMBER_OF_TIMESTEPS,
+        SPATIAL_DIMENSIONS,
+    )

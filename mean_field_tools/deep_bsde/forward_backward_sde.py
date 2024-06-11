@@ -46,7 +46,8 @@ class BackwardSDE:
         terminal_condition_function,  # Callable over space dimensions
         # exogenous_process,
         filtration: Filtration,
-        drift = lambda x: x[:,:,0]*0, # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        drift=lambda x: x[:, :, 0]
+        * 0,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
         self.spatial_dimensions = spatial_dimensions
         self.time_domain = time_domain
@@ -70,7 +71,9 @@ class BackwardSDE:
 
     def set_drift_path(self):
         self.drift_path = self.drift(self.filtration.brownian_paths).unsqueeze(-1)
-        self.drift_integral = torch.cumsum(self.drift_path * self.dt, dim = 1).unsqueeze(-1)
+        self.drift_integral = torch.cumsum(self.drift_path * self.dt, dim=1).unsqueeze(
+            -1
+        )
         return self.drift_path, self.drift_integral
 
     def set_terminal_condition(self, terminal_brownian):
@@ -78,7 +81,7 @@ class BackwardSDE:
         return self.terminal_condition
 
     def set_optimization_target(self, terminal_condition, drift_integral):
-        optimization_target = terminal_condition + drift_integral[:,-1,:].squeeze()   
+        optimization_target = terminal_condition + drift_integral[:, -1, :].squeeze()
         optimization_target = optimization_target.repeat(
             repeats=(1, 1, len(self.time_domain))
         )
@@ -96,7 +99,9 @@ class BackwardSDE:
         _, drift_integral = self.set_drift_path()
         terminal_brownian = self.filtration.brownian_paths[:, -1, 1]
         terminal_condition = self.set_terminal_condition(terminal_brownian)
-        optimization_target = self.set_optimization_target(terminal_condition, drift_integral)
+        optimization_target = self.set_optimization_target(
+            terminal_condition, drift_integral
+        )
         self.y_approximator.minimize_over_sample(
             self.filtration.brownian_paths, optimization_target, **approximator_args
         )

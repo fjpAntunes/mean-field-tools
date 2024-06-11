@@ -16,5 +16,3 @@ def test_path_shape():
 
 def test_inital_value_equal_zero():
     assert FILTRATION.brownian_paths[:, 0, 1] == torch.zeros(size=(1, 1))
-
-
