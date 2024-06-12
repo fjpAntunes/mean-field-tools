@@ -27,13 +27,16 @@ terminal_brownian = zero_drift_bsde.filtration.brownian_paths[:, -1, 1]
 terminal_condition = zero_drift_bsde.set_terminal_condition(terminal_brownian)
 
 optimization_target = zero_drift_bsde.set_optimization_target(
-    terminal_condition=zero_drift_bsde.terminal_condition, drift_integral=zero_drift_bsde.drift_integral
+    terminal_condition=zero_drift_bsde.terminal_condition,
+    drift_integral=zero_drift_bsde.drift_integral,
 )
 
+
 def test_set_optimization_target_shape_zero_drift_case():
-    assert optimization_target.shape == (3,101,1)
+    assert optimization_target.shape == (3, 101, 1)
+
 
 def test_set_optimization_target_consistency_along_path():
     assert tensors_are_close(
-        optimization_target[:,0,0], optimization_target[:,-1,0], tolerance=1e-5
+        optimization_target[:, 0, 0], optimization_target[:, -1, 0], tolerance=1e-5
     )

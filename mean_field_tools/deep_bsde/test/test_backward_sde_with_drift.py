@@ -32,16 +32,13 @@ optimization_target = bsde.set_optimization_target(
 )
 
 
-
-
 def test_drift_integral_at_0():
-    assert tensors_are_close(
-        integral[:, 0, 0].squeeze(), torch.Tensor([1, 1, 1]), 3e-2
-    )
+    assert tensors_are_close(integral[:, 0, 0].squeeze(), torch.Tensor([1, 1, 1]), 3e-2)
+
 
 def test_drift_integral_at_T():
     assert tensors_are_close(
-        integral[:, -1, 0].squeeze(), torch.Tensor([0,0,0]), 3e-2
+        integral[:, -1, 0].squeeze(), torch.Tensor([0, 0, 0]), 3e-2
     )
 
 
@@ -50,22 +47,15 @@ def test_set_terminal_condition():
     assert tensors_are_close(terminal_condition, benchmark, 1e-3)
 
 
-
 def test_set_optimization_target_shape():
     assert optimization_target.shape == (3, 101, 1)
 
 
 def test_set_optimization_target_value_at_T():
-    assert tensors_are_close(
-        optimization_target[:, -1, 0], terminal_condition, 1e-2
-    )
+    assert tensors_are_close(optimization_target[:, -1, 0], terminal_condition, 1e-2)
+
 
 def test_set_optimization_target_value_at_0():
-    
-    benchmark = terminal_condition + torch.Tensor([1,1,1])
-    assert tensors_are_close(
-        optimization_target[:,0, 0], benchmark, 1e-1
-    )
 
-
-
+    benchmark = terminal_condition + torch.Tensor([1, 1, 1])
+    assert tensors_are_close(optimization_target[:, 0, 0], benchmark, 1e-1)

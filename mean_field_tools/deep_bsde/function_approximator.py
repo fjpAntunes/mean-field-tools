@@ -7,21 +7,21 @@ import numpy as np
 from typing import Callable
 
 AnalyticalSolution = Callable[
-    [torch.Tensor, # Should be of size (num_samples)
-     float, # current_time
-     float # terminal time
-     ], 
-        torch.Tensor # Should be of size (num_samples)
-    ]
+    [
+        torch.Tensor,  # Should be of size (num_samples)
+        float,  # current_time
+        float,  # terminal time
+    ],
+    torch.Tensor,  # Should be of size (num_samples)
+]
 
-class FunctionApproximatorArtist():
-    def __init__(self,
-                 save_figures = False,
-                 analytical_solution : AnalyticalSolution = None
-                 ):
+
+class FunctionApproximatorArtist:
+    def __init__(
+        self, save_figures=False, analytical_solution: AnalyticalSolution = None
+    ):
         self.save_figures = save_figures
         self.analytical_solution = analytical_solution
-        
 
     def plot_loss_history(self, number, loss_history):
         fig, axs = plt.subplots()
@@ -48,7 +48,7 @@ class FunctionApproximatorArtist():
             plt.show()
         plt.close()
 
-    def plot_fit_against_analytical(self,approximator, sample, number):
+    def plot_fit_against_analytical(self, approximator, sample, number):
         fig, axs = plt.subplots(1, 3, figsize=(12, 3))
         _, time_length, _ = sample.shape
         for i, time_index in enumerate([0, time_length // 2, time_length - 1]):
@@ -62,12 +62,12 @@ class FunctionApproximatorArtist():
 
             axs[i].set_ylim(0, 2)
             axs[i].set_xlim(-1.5, 1.5)
-            axs[i].scatter(x, y_hat, color="b", s=0.5, label = 'Approximation')
+            axs[i].scatter(x, y_hat, color="b", s=0.5, label="Approximation")
             if self.analytical_solution:
-                y = self.analytical_solution(x,t,T) # x**2 + (T - t)
-                axs[i].scatter(x, y, color="r", s=0.5, label = 'Analytical')
+                y = self.analytical_solution(x, t, T)  # x**2 + (T - t)
+                axs[i].scatter(x, y, color="r", s=0.5, label="Analytical")
             axs[i].legend()
-        
+
         if self.save_figures:
             plt.savefig(f"./.figures/fit_plot_{number}.png")
         else:
@@ -146,7 +146,7 @@ class FunctionApproximator(nn.Module):
         number_of_iterations=10_000,
         number_of_epochs=100,
         number_of_plots=10,
-        plotter : FunctionApproximatorArtist = None,
+        plotter: FunctionApproximatorArtist = None,
     ):
         self.is_training = True
         self.optimizer = self.sgd_parameters["optimizer"](
