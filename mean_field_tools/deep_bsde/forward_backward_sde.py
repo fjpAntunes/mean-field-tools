@@ -56,7 +56,6 @@ class BackwardSDE:
         spatial_dimensions: int,
         time_domain,  # torch.linspace like
         terminal_condition_function,  # Callable over space dimensions
-        # exogenous_process,
         filtration: Filtration,
         drift: DriftType = zero_drift,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
@@ -65,7 +64,6 @@ class BackwardSDE:
         self.dt = self.time_domain[1] - self.time_domain[0]
         self.terminal_condition_function = terminal_condition_function
         self.drift = drift
-        # self.exogenous_process = exogenous_process
         self.filtration = filtration
 
     def initialize_approximator(self, nn_args: dict = {}):
@@ -75,10 +73,6 @@ class BackwardSDE:
 
     def generate_paths(self):
         return self.y_approximator(self.filtration.brownian_paths)
-
-    # def path_sampler(self, number_of_samples):
-    #    indexes = torch.perm(self.filtration.number_of_paths)[:number_of_samples]
-    #    return self.solution_paths[indexes,:,:]
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates drift path and backwards drift integral.
@@ -132,7 +126,6 @@ class BackwardSDE:
         optimization_target = self.set_optimization_target(
             terminal_condition, drift_integral
         )
-        # optimization_target is acting weird on script
         self.y_approximator.minimize_over_sample(
             self.filtration.brownian_paths, optimization_target, **approximator_args
         )
