@@ -50,12 +50,12 @@ class FunctionApproximator(nn.Module):
             return input.to(self.device)
         else:
             return input
-        
+
     def postprocess(self, output, training_status):
         if training_status == True:
             return output
         else:
-            return output.to('cpu')
+            return output.to("cpu")
 
     def forward(self, x):
         x = self.preprocess(x)
@@ -64,7 +64,7 @@ class FunctionApproximator(nn.Module):
             out = self.activation(layer(out))
 
         out = self.output(out)
-        out = self.postprocess(out, training_status = self.is_training)
+        out = self.postprocess(out, training_status=self.is_training)
         return out
 
     def minimize_over_sample(
@@ -111,7 +111,7 @@ class FunctionApproximator(nn.Module):
                 self.plot_loss_history(j)
                 self.plot_terminal_fit(batch_sample, batch_target, j)
                 self.plot_sample_paths(batch_sample, j)
-        
+
         self.is_training = False
 
     def _append_loss_moving_average(self, loss, window_size):
