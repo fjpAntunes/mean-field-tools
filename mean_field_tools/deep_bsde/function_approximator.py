@@ -32,6 +32,7 @@ class FunctionApproximator(nn.Module):
         }
 
         self.device = device
+        self.is_training = False
 
         self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
         self.hidden = nn.ModuleList(
@@ -44,13 +45,26 @@ class FunctionApproximator(nn.Module):
 
         self.activation = nn.SiLU()
 
+    def preprocess(self, input):
+        if input.device.type != self.device:
+            return input.to(self.device)
+        else:
+            return input
+        
+    def postprocess(self, output, training_status):
+        if training_status == True:
+            return output
+        else:
+            return output.to('cpu')
+
     def forward(self, x):
+        x = self.preprocess(x)
         out = self.activation(self.input(x))
         for layer in self.hidden:
             out = self.activation(layer(out))
 
         out = self.output(out)
-
+        out = self.postprocess(out, training_status = self.is_training)
         return out
 
     def minimize_over_sample(
@@ -65,6 +79,7 @@ class FunctionApproximator(nn.Module):
         plotting=False,
         save_figures=False,
     ):
+        self.is_training = True
         self.save_figures = save_figures
         self.optimizer = self.sgd_parameters["optimizer"](
             self.parameters(), **self.sgd_parameters["optimizer_params"]
@@ -96,6 +111,8 @@ class FunctionApproximator(nn.Module):
                 self.plot_loss_history(j)
                 self.plot_terminal_fit(batch_sample, batch_target, j)
                 self.plot_sample_paths(batch_sample, j)
+        
+        self.is_training = False
 
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)
