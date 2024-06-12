@@ -1,4 +1,5 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
+from mean_field_tools.deep_bsde.utils import tensors_are_close
 import torch
 
 torch.manual_seed(0)
@@ -31,27 +32,40 @@ optimization_target = bsde.set_optimization_target(
 )
 
 
-def tensors_are_close(a, b, tolerance):
-    return torch.norm(a - b) < tolerance
 
 
-def test_drift_integral():
+def test_drift_integral_at_0():
     assert tensors_are_close(
-        integral[:, -1, 0].squeeze(), torch.Tensor([1, 1, 1]), 3e-2
+        integral[:, 0, 0].squeeze(), torch.Tensor([1, 1, 1]), 3e-2
+    )
+
+def test_drift_integral_at_T():
+    assert tensors_are_close(
+        integral[:, -1, 0].squeeze(), torch.Tensor([0,0,0]), 3e-2
     )
 
 
 def test_set_terminal_condition():
-
     benchmark = torch.Tensor([0.7749, 0.1563, 0.0753])
     assert tensors_are_close(terminal_condition, benchmark, 1e-3)
+
 
 
 def test_set_optimization_target_shape():
     assert optimization_target.shape == (3, 101, 1)
 
 
-def test_set_optimization_target_value():
+def test_set_optimization_target_value_at_T():
     assert tensors_are_close(
-        optimization_target[:, -1, 0], torch.Tensor([1.7849, 1.1663, 1.0853]), 1e-2
+        optimization_target[:, -1, 0], terminal_condition, 1e-2
     )
+
+def test_set_optimization_target_value_at_0():
+    
+    benchmark = terminal_condition + torch.Tensor([1,1,1])
+    assert tensors_are_close(
+        optimization_target[:,0, 0], benchmark, 1e-1
+    )
+
+
+
