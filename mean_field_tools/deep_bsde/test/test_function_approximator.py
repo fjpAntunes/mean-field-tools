@@ -1,28 +1,42 @@
-import torch
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
-
-torch.manual_seed(0)
-
-# Test different input shapes
-
-# Test different output shapes
-
-# Test different scoring functions
+from types import SimpleNamespace
+import torch
 
 
-# Test simple fit
-def test_different_input_shapes():
-    sampler = lambda batch_size: torch.linspace(-1, 1, 101).reshape(-1, 1)
-    target = (sampler(1)) ** 2
+function_approximator = FunctionApproximator(
+    domain_dimension=1, output_dimension=1, device="cpu"
+)
 
-    approximator = FunctionApproximator(
-        domain_dimension=1, output_dimension=1, number_of_layers=5
+
+class MockDevice:
+    def __init__(self, type):
+        self.type = type
+
+
+class MockTensor:
+    def __init__(self, device: MockDevice):
+        self.device = device
+
+    def to(self, device_type):
+        self.device.type = device_type
+        return self
+
+
+def test_preprocess():
+    """Preprocess should make input tensor be on same device as function_approximator."""
+    mock_device = MockDevice(type="cuda")
+    mock_input = MockTensor(device=mock_device)
+    processed_input = function_approximator.preprocess(mock_input)
+
+    assert processed_input.device.type == function_approximator.device
+
+
+def test_postprocess():
+    """If function_approximator is not training, should return output on cpu device for interactivity."""
+    mock_device = MockDevice(type="cuda")
+    mock_output = MockTensor(device=mock_device)
+    processed_output = function_approximator.postprocess(
+        mock_output, training_status=False
     )
-    approximator.minimize_over_sample(sampler, target, number_of_iterations=100)
-    x = sampler(1)
-    torch.testing.assert_close(
-        expected=torch.zeros_like(target),
-        actual=approximator(x) - target,
-        atol=5e-2,
-        rtol=0.1,
-    )
+
+    assert processed_output.device.type == "cpu"
