@@ -6,7 +6,7 @@ from typing import Callable
 
 DriftType = Callable[
     [torch.Tensor],  # Shape should be (num_paths, path_length, time_dim+spatial_dims)
-    torch.Tensor,  # Shape should be (num_paths, path_length)
+    torch.Tensor,  # Shape should be (num_paths, path_length, spatial_dim)
 ]
 
 
@@ -26,7 +26,7 @@ class Filtration:
         self.number_of_paths = number_of_paths
 
     def generate_paths(self):
-        dt = self.time_domain[1] - self.time_domain[0]
+        self.dt = self.time_domain[1] - self.time_domain[0]
         self.brownian_increments = (
             torch.randn(
                 size=(
@@ -35,7 +35,7 @@ class Filtration:
                     self.spatial_dimensions,
                 )
             )
-            * dt**0.5
+            * self.dt**0.5
         )
         self.brownian_increments = torch.cat(
             [
@@ -48,6 +48,25 @@ class Filtration:
         t = self.time_domain.repeat(repeats=(self.number_of_paths, 1))
         t = torch.unsqueeze(t, dim=-1)
         self.brownian_paths = torch.cat([t, self.path_at_t], dim=2)
+
+    def brownian_increments_at_t(self, time):
+        pass
+
+
+class ForwardSDE:
+    """Implements stochastic process of the form X_t = f(t, B_t)"""
+
+    def __init__(
+        self,
+        filtration: Filtration,
+        functional_form,
+    ):
+        self.filtration = filtration
+        self.functional_form = functional_form
+
+    def generate_paths(self):
+        self.paths = self.functional_form(self.filtration)
+        return
 
 
 class BackwardSDE:
