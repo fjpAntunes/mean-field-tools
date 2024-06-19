@@ -12,23 +12,24 @@ FILTRATION = Filtration(
     spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3
 )
 
-FILTRATION.generate_paths()
+
+def QUADRATIC(x):
+    return x**2
+
 
 bsde = BackwardSDE(
-    spatial_dimensions=1,
-    time_domain=TIME_DOMAIN,
-    terminal_condition_function=lambda x: x**2,
+    terminal_condition_function=QUADRATIC,
     drift=lambda t: 2 * t[:, :, 0],
     filtration=FILTRATION,
 )
 _, integral = bsde.set_drift_path()
 
 
-terminal_brownian = bsde.filtration.brownian_paths[:, -1, 1]
+terminal_brownian = bsde.filtration.brownian_process[:, -1, 0]
 terminal_condition = bsde.set_terminal_condition(terminal_brownian)
 
 optimization_target = bsde.set_optimization_target(
-    terminal_condition=bsde.terminal_condition, drift_integral=bsde.drift_integral
+    terminal_condition=terminal_condition, drift_integral=bsde.drift_integral
 )
 
 
@@ -44,7 +45,9 @@ def test_drift_integral_at_T():
 
 def test_set_terminal_condition():
     benchmark = torch.Tensor([0.7749, 0.1563, 0.0753])
-    assert tensors_are_close(terminal_condition, benchmark, 1e-3)
+    assert tensors_are_close(
+        bsde.set_terminal_condition(terminal_brownian), benchmark, 1e-3
+    )
 
 
 def test_set_optimization_target_shape():

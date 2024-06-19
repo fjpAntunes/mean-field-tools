@@ -4,6 +4,9 @@ from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, Backward
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
 
+torch.manual_seed(0)
+
+
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 NUMBER_OF_PATHS = 1000
 SPATIAL_DIMENSIONS = 1
@@ -16,11 +19,8 @@ def ANALYTICAL_SOLUTION(x, t, T):
 
 
 filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS)
-filtration.generate_paths()
 
 bsde = BackwardSDE(
-    spatial_dimensions=SPATIAL_DIMENSIONS,
-    time_domain=TIME_DOMAIN,
     terminal_condition_function=TERMINAL_CONDITION,
     filtration=filtration,
 )

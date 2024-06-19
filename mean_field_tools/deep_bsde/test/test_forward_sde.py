@@ -12,19 +12,18 @@ FILTRATION = Filtration(
     spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3000
 )
 
-FILTRATION.generate_paths()
 
 K = 1
 
 
 def OU_FUNCTIONAL_FORM(filtration):
-    dummy_time = filtration.brownian_paths[:, :, 0]
+    dummy_time = filtration.time_process[:, :, 0]
 
     integrand = torch.exp(K * dummy_time) * filtration.brownian_increments.squeeze()
 
     integral = torch.cumsum(integrand, dim=1)
 
-    time = filtration.brownian_paths[:, :, 0]
+    time = filtration.time_process[:, :, 0]
     return torch.exp(-K * time) * integral
 
 

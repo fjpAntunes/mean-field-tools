@@ -11,11 +11,8 @@ SPATIAL_DIMENSIONS = 1
 TERMINAL_CONDITION = lambda x: x**2
 
 filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS)
-filtration.generate_paths()
 
 bsde = BackwardSDE(
-    spatial_dimensions=SPATIAL_DIMENSIONS,
-    time_domain=TIME_DOMAIN,
     terminal_condition_function=TERMINAL_CONDITION,
     filtration=filtration,
 )

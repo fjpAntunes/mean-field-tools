@@ -12,22 +12,19 @@ FILTRATION = Filtration(
     spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3
 )
 
-FILTRATION.generate_paths()
 
 zero_drift_bsde = BackwardSDE(
-    spatial_dimensions=1,
-    time_domain=TIME_DOMAIN,
     terminal_condition_function=lambda x: x**2,
     filtration=FILTRATION,
 )
 _, integral = zero_drift_bsde.set_drift_path()
 
 
-terminal_brownian = zero_drift_bsde.filtration.brownian_paths[:, -1, 1]
+terminal_brownian = zero_drift_bsde.filtration.brownian_process[:, -1, 0]
 terminal_condition = zero_drift_bsde.set_terminal_condition(terminal_brownian)
 
 optimization_target = zero_drift_bsde.set_optimization_target(
-    terminal_condition=zero_drift_bsde.terminal_condition,
+    terminal_condition=terminal_condition,
     drift_integral=zero_drift_bsde.drift_integral,
 )
 
