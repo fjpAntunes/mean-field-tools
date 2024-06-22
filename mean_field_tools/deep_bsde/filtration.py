@@ -40,7 +40,7 @@ class BrownianIncrementGenerator:
         return brownian_increments.squeeze(-2)
 
     def _generate_standard_normal(self, size, seed):
-        if seed:
+        if seed is not None:
             torch.manual_seed(seed)
         standard_normal = torch.randn(size=size)
         return standard_normal
@@ -58,7 +58,6 @@ class BrownianIncrementGenerator:
         brownian_increments = self._calculate_brownian_increments(
             standard_normal, standard_deviation
         )
-
         return brownian_increments
 
 
