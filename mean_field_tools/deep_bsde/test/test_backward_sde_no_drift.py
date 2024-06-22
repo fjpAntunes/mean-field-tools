@@ -12,7 +12,6 @@ FILTRATION = Filtration(
     spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3
 )
 
-
 zero_drift_bsde = BackwardSDE(
     terminal_condition_function=lambda x: x**2,
     filtration=FILTRATION,

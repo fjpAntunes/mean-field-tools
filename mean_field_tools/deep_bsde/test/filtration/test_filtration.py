@@ -1,4 +1,4 @@
-from mean_field_tools.deep_bsde.forward_backward_sde import Filtration
+from mean_field_tools.deep_bsde.filtration import Filtration, BrownianIncrementGenerator
 from mean_field_tools.deep_bsde.utils import tensors_are_close, L_inf_norm
 import torch
 

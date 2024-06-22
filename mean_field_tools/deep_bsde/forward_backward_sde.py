@@ -1,5 +1,6 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
+from mean_field_tools.deep_bsde.filtration import Filtration
 from typing import Callable, List
 
 # Maybe create a path class with time and value - (t,X_t) in general
@@ -12,63 +13,6 @@ DriftType = Callable[
 
 def zero_drift(x):
     return x[:, :, 0] * 0
-
-
-class StochasticProcess:
-    pass
-
-
-class Filtration:
-    processes: list[StochasticProcess]
-
-    def __init__(
-        self,
-        spatial_dimensions: int,
-        time_domain,  # torch.linspace like
-        number_of_paths,
-    ):
-        self.spatial_dimensions = spatial_dimensions
-        self.time_domain = time_domain
-        self.dt = self.time_domain[1] - self.time_domain[0]
-
-        self.number_of_paths = number_of_paths
-
-        (
-            self.brownian_increments,
-            self.brownian_process,
-        ) = self.generate_brownian_process()
-        self.time_process = self.generate_time_process()
-
-        self.processes = [self.time_process, self.brownian_process]
-
-    def generate_time_process(self):
-        time_process = self.time_domain.repeat(repeats=(self.number_of_paths, 1))
-        time_process = torch.unsqueeze(time_process, dim=-1)
-        return time_process
-
-    def generate_brownian_process(self):
-        brownian_increments = (
-            torch.randn(
-                size=(
-                    self.number_of_paths,
-                    len(self.time_domain) - 1,
-                    self.spatial_dimensions,
-                )
-            )
-            * self.dt**0.5
-        )
-        brownian_increments = torch.cat(
-            [
-                torch.zeros(size=(self.number_of_paths, 1, self.spatial_dimensions)),
-                brownian_increments,
-            ],
-            dim=1,
-        )
-        brownian_process = torch.cumsum(brownian_increments, axis=1)
-        return brownian_increments, brownian_process
-
-    def get_paths(self):
-        return torch.cat(self.processes, dim=2)
 
 
 class ForwardSDE:
