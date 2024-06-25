@@ -35,7 +35,36 @@ def test_brownian_process_mean():
     )
 
 
-def test_path_variance():
+def test_brownian_process_variance():
     empirical = torch.var(FILTRATION.brownian_process, dim=0).squeeze()
     analytical = TIME_DOMAIN
     assert tensors_are_close(empirical, analytical, tolerance=3e-1, norm=L_inf_norm)
+
+
+def test_brownian_process_increments():
+    filtration = Filtration(
+        spatial_dimensions=1,
+        time_domain=torch.linspace(0, 1, 4),
+        number_of_paths=1,
+        seed=0,
+    )
+
+    benchmark = torch.Tensor(
+        [[[0.8896945118904114], [-0.16941122710704803], [-1.2579247951507568]]]
+    )
+
+    assert tensors_are_close(filtration.brownian_increments, benchmark)
+
+
+def test_brownian_process_path():
+    filtration = Filtration(
+        spatial_dimensions=1,
+        time_domain=torch.linspace(0, 1, 4),
+        number_of_paths=1,
+        seed=0,
+    )
+    benchmark = torch.Tensor(
+        [[[0.0], [0.8896945118904114], [0.7202832698822021], [-0.5376415252685547]]]
+    )
+
+    assert tensors_are_close(filtration.brownian_process, benchmark)

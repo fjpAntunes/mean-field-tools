@@ -45,7 +45,7 @@ class BrownianIncrementGenerator:
         standard_normal = torch.randn(size=size)
         return standard_normal
 
-    def __call__(self):
+    def __call__(self) -> torch.Tensor:
         size = (
             self.number_of_paths,
             len(self.sampling_times) - 1,
@@ -69,47 +69,39 @@ class Filtration:
         spatial_dimensions: int,
         time_domain,  # torch.linspace like
         number_of_paths,
+        seed=None,
     ):
+        generator = BrownianIncrementGenerator(
+            number_of_paths=number_of_paths,
+            spatial_dimensions=spatial_dimensions,
+            sampling_times=time_domain,
+            seed=seed,
+        )
         self.spatial_dimensions = spatial_dimensions
         self.time_domain = time_domain
-        self.dt = self.time_domain[1] - self.time_domain[0]
-
+        self.dt = time_domain[1] - time_domain[0]
         self.number_of_paths = number_of_paths
 
-        (
-            self.brownian_increments,
-            self.brownian_process,
-        ) = self.generate_brownian_process()
-        self.time_process = self.generate_time_process()
+        self.brownian_increments = generator()
+
+        self.brownian_process = self._generate_brownian_process(
+            self.brownian_increments
+        )
+        self.time_process = self._generate_time_process()
 
         self.processes = [self.time_process, self.brownian_process]
 
-    def generate_time_process(self):
+    def _generate_time_process(self):
         time_process = self.time_domain.repeat(repeats=(self.number_of_paths, 1))
         time_process = torch.unsqueeze(time_process, dim=-1)
         return time_process
 
-    def generate_brownian_process(self):
-
-        brownian_increments = (
-            torch.randn(
-                size=(
-                    self.number_of_paths,
-                    len(self.time_domain) - 1,
-                    self.spatial_dimensions,
-                )
-            )
-            * self.dt**0.5
+    def _generate_brownian_process(self, brownian_increments):
+        initial = torch.zeros(size=(self.number_of_paths, 1, self.spatial_dimensions))
+        brownian_process = torch.cat(
+            [initial, torch.cumsum(brownian_increments, axis=1)], dim=1
         )
-        brownian_increments = torch.cat(
-            [
-                torch.zeros(size=(self.number_of_paths, 1, self.spatial_dimensions)),
-                brownian_increments,
-            ],
-            dim=1,
-        )
-        brownian_process = torch.cumsum(brownian_increments, axis=1)
-        return brownian_increments, brownian_process
+        return brownian_process
 
     def get_paths(self):
         return torch.cat(self.processes, dim=2)
