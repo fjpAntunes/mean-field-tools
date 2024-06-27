@@ -17,9 +17,14 @@ def QUADRATIC(x):
     return x**2
 
 
+def DRIFT(filtration: Filtration):
+    t = filtration.time_process
+    return 2 * t[:, :, 0]
+
+
 bsde = BackwardSDE(
     terminal_condition_function=QUADRATIC,
-    drift=lambda t: 2 * t[:, :, 0],
+    drift=DRIFT,
     filtration=FILTRATION,
 )
 _, integral = bsde.set_drift_path()

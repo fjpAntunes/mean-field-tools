@@ -12,8 +12,13 @@ FILTRATION = Filtration(
     spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3
 )
 
+
+def QUADRATIC_TERMINAL(filtration: Filtration):
+    return filtration.brownian_process[:, -1, :] ** 2
+
+
 zero_drift_bsde = BackwardSDE(
-    terminal_condition_function=lambda x: x**2,
+    terminal_condition_function=QUADRATIC_TERMINAL,
     filtration=FILTRATION,
 )
 _, integral = zero_drift_bsde.set_drift_path()

@@ -30,7 +30,7 @@ ornstein_uhlenbeck = ForwardSDE(
     filtration=FILTRATION, functional_form=OU_FUNCTIONAL_FORM
 )
 
-ornstein_uhlenbeck.generate_paths()
+ornstein_uhlenbeck.generate_paths(FILTRATION)
 
 
 def test_path_mean():
@@ -62,7 +62,7 @@ def test_ou_path():
         filtration=filtration, functional_form=OU_FUNCTIONAL_FORM
     )
 
-    ornstein_uhlenbeck.generate_paths()
+    ornstein_uhlenbeck.generate_paths(filtration)
     benchmark = torch.Tensor(
         [[[0.0], [0.8896945714950562], [0.46808281540870667], [-0.9225288033485413]]]
     )

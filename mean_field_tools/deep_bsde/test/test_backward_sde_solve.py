@@ -19,7 +19,7 @@ bsde = BackwardSDE(
 
 bsde.initialize_approximator()
 
-approximate_solution = bsde.solve(
+bsde.solve(
     approximator_args={
         "batch_size": 100,
         "number_of_iterations": 500,
@@ -27,6 +27,8 @@ approximate_solution = bsde.solve(
         "number_of_plots": 5,
     }
 )
+
+approximate_solution = bsde.generate_paths(filtration)
 
 
 def test_approximate_solution_shape():
