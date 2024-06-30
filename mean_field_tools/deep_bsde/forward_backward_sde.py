@@ -112,21 +112,16 @@ class BackwardSDE:
 
 class ForwardBackwardSDE:
     def __init__(
-        self,
-        filtration: Filtration,
-        forward_functional_form,
-        # forward_drift: DriftType,
-        backward_drift,
-        terminal_condition_function,
+        self, filtration: Filtration, forward_sde: ForwardSDE, backward_sde: BackwardSDE
     ):
-        self.forward_sde = ForwardSDE(
-            filtration=filtration, functional_form=forward_functional_form
-        )
-        self.backward_sde = BackwardSDE(
-            terminal_condition_function=terminal_condition_function,
-            filtration=filtration,
-            drift=lambda filtration: backward_drift(self, filtration),
-        )
+        self.filtration = filtration
+        self.forward_sde = forward_sde
+        self.backward_sde = backward_sde
 
-    def backward_solve(self, approximator_args: dict = None):
+    def _add_forward_sde_to_filtration(self):
+        forward_sde = self.forward_sde.functional_form(self.filtration)
+        self.filtration.forward_sde = forward_sde
+
+    def backward_solve(self, approximator_args: dict = {}):
+        self._add_forward_sde_to_filtration()
         self.backward_sde.solve(approximator_args)

@@ -37,17 +37,26 @@ def BACKWARD_DRIFT(forward_backward_sde: ForwardBackwardSDE, filtration: Filtrat
 
 
 def TERMINAL_CONDITION(filtration: Filtration):
-    X_T = filtration.forward[:, -1, :]
+    X_T = filtration.forward_sde[:, -1, :]
 
     return X_T**2
 
 
 def setup():
-    forward_backward_sde = ForwardBackwardSDE(
+
+    forward_sde = ForwardSDE(
         filtration=FILTRATION,
-        forward_functional_form=OU_FUNCTIONAL_FORM,
-        backward_drift=BACKWARD_DRIFT,
+        functional_form=OU_FUNCTIONAL_FORM,
+    )
+
+    backward_sde = BackwardSDE(
         terminal_condition_function=TERMINAL_CONDITION,
+        filtration=FILTRATION,
+        drift=BACKWARD_DRIFT,
+    )
+
+    forward_backward_sde = ForwardBackwardSDE(
+        filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde
     )
     return forward_backward_sde
 
