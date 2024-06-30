@@ -64,8 +64,9 @@ def test_set_optimization_target_shape():
 
 def test_set_optimization_target_value_at_T():
     bsde, optimization_target = setup()
+    optimization_target_at_T = bsde.terminal_condition
     assert tensors_are_close(
-        optimization_target[:, -1, 0], bsde.terminal_condition, 1e-2
+        optimization_target[:, -1, :], optimization_target_at_T, 1e-2
     )
 
 
