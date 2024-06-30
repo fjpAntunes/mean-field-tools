@@ -72,6 +72,5 @@ def test_set_optimization_target_value_at_T():
 
 def test_set_optimization_target_value_at_0():
     bsde, optimization_target = setup()
-
-    benchmark = bsde.terminal_condition + torch.Tensor([1, 1, 1])
-    assert tensors_are_close(optimization_target[:, 0, 0], benchmark, 1e-1)
+    benchmark = bsde.terminal_condition + torch.Tensor([[1], [1], [1]])
+    assert tensors_are_close(optimization_target[:, 0, :], benchmark, 1e-1)
