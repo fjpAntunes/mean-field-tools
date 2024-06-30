@@ -51,8 +51,8 @@ class BackwardSDE:
             **nn_args
         )
 
-    def generate_paths(self, filtration: Filtration):
-        return self.y_approximator(filtration.get_paths())
+    def generate_paths(self):
+        return self.y_approximator(self.filtration.get_paths())
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates drift path and backwards drift integral.
@@ -111,6 +111,8 @@ class BackwardSDE:
 
 
 class ForwardBackwardSDE:
+    """This class manipulates both forward and backward SDE objects in order to implement Picard iterations numerical scheme."""
+
     def __init__(
         self, filtration: Filtration, forward_sde: ForwardSDE, backward_sde: BackwardSDE
     ):
@@ -118,10 +120,10 @@ class ForwardBackwardSDE:
         self.forward_sde = forward_sde
         self.backward_sde = backward_sde
 
-    def _add_forward_sde_to_filtration(self):
-        forward_sde = self.forward_sde.functional_form(self.filtration)
-        self.filtration.forward_sde = forward_sde
+    def _add_forward_process_to_filtration(self):
+        forward_process = self.forward_sde.functional_form(self.filtration)
+        self.filtration.forward_process = forward_process
 
     def backward_solve(self, approximator_args: dict = {}):
-        self._add_forward_sde_to_filtration()
+        self._add_forward_process_to_filtration()
         self.backward_sde.solve(approximator_args)

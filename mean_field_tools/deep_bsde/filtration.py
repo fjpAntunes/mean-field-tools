@@ -62,6 +62,8 @@ class BrownianIncrementGenerator:
 
 
 class Filtration:
+    """This class register the state of the system in a time-wise manner"""
+
     processes: list[StochasticProcess]
 
     def __init__(
@@ -89,7 +91,13 @@ class Filtration:
         )
         self.time_process = self._generate_time_process()
 
-        self.processes = [self.time_process, self.brownian_process]
+        self.forward_process = None
+        self.backward_process = None
+
+        self.processes = [
+            self.time_process,
+            self.brownian_process,
+        ]
 
     def _generate_time_process(self):
         time_process = self.time_domain.repeat(repeats=(self.number_of_paths, 1))

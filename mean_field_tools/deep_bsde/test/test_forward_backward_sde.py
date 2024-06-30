@@ -3,13 +3,15 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardSDE,
     BackwardSDE,
 )
+
+from mean_field_tools.deep_bsde.utils import tensors_are_close
 from mean_field_tools.deep_bsde.filtration import Filtration
 import torch
 
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 
 FILTRATION = Filtration(
-    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3000, seed=0
+    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
 )
 
 
@@ -30,14 +32,14 @@ def OU_FUNCTIONAL_FORM(filtration):
     return path
 
 
-def BACKWARD_DRIFT(forward_backward_sde: ForwardBackwardSDE, filtration: Filtration):
-    X_t = forward_backward_sde.forward_sde.generate_paths(filtration)
+def BACKWARD_DRIFT(filtration: Filtration):
+    X_t = filtration.forward_process
 
     return 2 * X_t
 
 
 def TERMINAL_CONDITION(filtration: Filtration):
-    X_T = filtration.forward_sde[:, -1, :]
+    X_T = filtration.forward_process[:, -1, :]
 
     return X_T**2
 
@@ -54,6 +56,7 @@ def setup():
         filtration=FILTRATION,
         drift=BACKWARD_DRIFT,
     )
+    backward_sde.initialize_approximator()
 
     forward_backward_sde = ForwardBackwardSDE(
         filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde
@@ -67,4 +70,22 @@ def test_initialize():
 
 def test_backward_solve():
     forward_backward_sde = setup()
-    forward_backward_sde.backward_solve()
+    forward_backward_sde.backward_solve(
+        approximator_args={
+            "batch_size": 100,
+            "number_of_iterations": 500,
+            "number_of_epochs": 5,
+            "number_of_plots": 5,
+        }
+    )
+    paths = forward_backward_sde.backward_sde.generate_paths()[:5, -1, :]
+    benchmark = [
+        [0.3737616539001465],
+        [0.1559997797012329],
+        [0.13741815090179443],
+        [1.629604458808899],
+        [0.7803303599357605],
+    ]
+    benchmark = torch.Tensor(benchmark)
+
+    assert tensors_are_close(paths, benchmark)
