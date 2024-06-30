@@ -67,7 +67,7 @@ class BackwardSDE:
         self.drift_integral = self.drift_integral * self.filtration.dt
         return self.drift_path, self.drift_integral
 
-    def set_terminal_condition(self, terminal_brownian: torch.Tensor) -> torch.Tensor:
+    def set_terminal_condition(self) -> torch.Tensor:
         """Calculates terminal condition for the BSDE
 
         Args:
@@ -76,8 +76,9 @@ class BackwardSDE:
         Returns:
             terminal_condition: value of the terminal condition of the BSDE for each of the sample paths.
         """
-        terminal_condition = self.terminal_condition_function(terminal_brownian)
-        return terminal_condition
+        self.terminal_condition = self.terminal_condition_function(self.filtration)
+
+        return self.terminal_condition
 
     def set_optimization_target(
         self, terminal_condition: torch.Tensor, drift_integral: torch.Tensor
@@ -100,9 +101,9 @@ class BackwardSDE:
 
     def solve(self, approximator_args: dict = None):
         _, drift_integral = self.set_drift_path()
-        self.terminal_condition = self.terminal_condition_function(self.filtration)
+        terminal_condition = self.set_terminal_condition()
         optimization_target = self.set_optimization_target(
-            self.terminal_condition, drift_integral
+            terminal_condition, drift_integral
         )
         self.y_approximator.minimize_over_sample(
             self.filtration.get_paths(), optimization_target, **approximator_args

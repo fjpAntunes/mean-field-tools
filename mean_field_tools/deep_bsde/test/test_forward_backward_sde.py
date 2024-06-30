@@ -37,7 +37,7 @@ def BACKWARD_DRIFT(forward_backward_sde: ForwardBackwardSDE, filtration: Filtrat
 
 
 def TERMINAL_CONDITION(filtration: Filtration):
-    X_T = filtration.path.forward[:, -1, :]
+    X_T = filtration.forward[:, -1, :]
 
     return X_T**2
 

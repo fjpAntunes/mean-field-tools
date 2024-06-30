@@ -1,5 +1,5 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.utils import tensors_are_close
+from mean_field_tools.deep_bsde.utils import tensors_are_close, QUADRATIC_TERMINAL
 import torch
 
 torch.manual_seed(0)
@@ -13,10 +13,6 @@ FILTRATION = Filtration(
 )
 
 
-def QUADRATIC_TERMINAL(filtration: Filtration):
-    return filtration.brownian_process[:, -1, :] ** 2
-
-
 zero_drift_bsde = BackwardSDE(
     terminal_condition_function=QUADRATIC_TERMINAL,
     filtration=FILTRATION,
@@ -24,11 +20,10 @@ zero_drift_bsde = BackwardSDE(
 _, integral = zero_drift_bsde.set_drift_path()
 
 
-terminal_brownian = zero_drift_bsde.filtration.brownian_process[:, -1, 0]
-terminal_condition = zero_drift_bsde.set_terminal_condition(terminal_brownian)
+terminal_condition = zero_drift_bsde.set_terminal_condition()
 
 optimization_target = zero_drift_bsde.set_optimization_target(
-    terminal_condition=terminal_condition,
+    terminal_condition=zero_drift_bsde.terminal_condition,
     drift_integral=zero_drift_bsde.drift_integral,
 )
 

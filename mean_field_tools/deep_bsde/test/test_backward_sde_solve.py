@@ -1,4 +1,5 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
+from mean_field_tools.deep_bsde.utils import QUADRATIC_TERMINAL
 import torch
 
 torch.manual_seed(0)
@@ -8,12 +9,11 @@ TIME_DOMAIN = torch.linspace(0, 1, NUMBER_OF_TIMESTEPS)
 NUMBER_OF_PATHS = 100
 SPATIAL_DIMENSIONS = 1
 
-TERMINAL_CONDITION = lambda x: x**2
 
 filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS)
 
 bsde = BackwardSDE(
-    terminal_condition_function=TERMINAL_CONDITION,
+    terminal_condition_function=QUADRATIC_TERMINAL,
     filtration=filtration,
 )
 

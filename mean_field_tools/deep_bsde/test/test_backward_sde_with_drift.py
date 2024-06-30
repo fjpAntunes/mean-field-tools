@@ -1,10 +1,7 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.utils import tensors_are_close
+from mean_field_tools.deep_bsde.utils import tensors_are_close, QUADRATIC_TERMINAL
 import torch
 
-torch.manual_seed(0)
-
-# BackwardSDE():
 
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 
@@ -13,57 +10,67 @@ FILTRATION = Filtration(
 )
 
 
-def QUADRATIC(x):
-    return x**2
-
-
 def DRIFT(filtration: Filtration):
     t = filtration.time_process
-    return 2 * t[:, :, 0]
+    return 2 * t  # [:, :, 0]
 
 
-bsde = BackwardSDE(
-    terminal_condition_function=QUADRATIC,
-    drift=DRIFT,
-    filtration=FILTRATION,
-)
-_, integral = bsde.set_drift_path()
+def setup():
+    bsde = BackwardSDE(
+        terminal_condition_function=QUADRATIC_TERMINAL,
+        drift=DRIFT,
+        filtration=FILTRATION,
+    )
+    _, integral = bsde.set_drift_path()
+
+    terminal_condition = bsde.set_terminal_condition()
+
+    optimization_target = bsde.set_optimization_target(
+        terminal_condition=terminal_condition, drift_integral=bsde.drift_integral
+    )
+
+    return bsde, optimization_target
 
 
-terminal_brownian = bsde.filtration.brownian_process[:, -1, 0]
-terminal_condition = bsde.set_terminal_condition(terminal_brownian)
-
-optimization_target = bsde.set_optimization_target(
-    terminal_condition=terminal_condition, drift_integral=bsde.drift_integral
-)
+def test_setup():
+    setup()
 
 
 def test_drift_integral_at_0():
-    assert tensors_are_close(integral[:, 0, 0].squeeze(), torch.Tensor([1, 1, 1]), 3e-2)
+    bsde, _ = setup()
+    assert tensors_are_close(
+        bsde.drift_integral[:, 0, 0].squeeze(), torch.Tensor([1, 1, 1]), 3e-2
+    )
 
 
 def test_drift_integral_at_T():
+    bsde, _ = setup()
     assert tensors_are_close(
-        integral[:, -1, 0].squeeze(), torch.Tensor([0, 0, 0]), 3e-2
+        bsde.drift_integral[:, -1, 0].squeeze(), torch.Tensor([0, 0, 0]), 3e-2
     )
 
 
 def test_set_terminal_condition():
+    bsde, _ = setup()
     benchmark = torch.Tensor([0.7749, 0.1563, 0.0753])
-    assert tensors_are_close(
-        bsde.set_terminal_condition(terminal_brownian), benchmark, 1e-3
-    )
+    terminal_condition = bsde.set_terminal_condition()
+    assert tensors_are_close(terminal_condition, benchmark, 1e-3)
 
 
 def test_set_optimization_target_shape():
+    _, optimization_target = setup()
     assert optimization_target.shape == (3, 101, 1)
 
 
 def test_set_optimization_target_value_at_T():
-    assert tensors_are_close(optimization_target[:, -1, 0], terminal_condition, 1e-2)
+    bsde, optimization_target = setup()
+    assert tensors_are_close(
+        optimization_target[:, -1, 0], bsde.terminal_condition, 1e-2
+    )
 
 
 def test_set_optimization_target_value_at_0():
+    bsde, optimization_target = setup()
 
-    benchmark = terminal_condition + torch.Tensor([1, 1, 1])
+    benchmark = bsde.terminal_condition + torch.Tensor([1, 1, 1])
     assert tensors_are_close(optimization_target[:, 0, 0], benchmark, 1e-1)
