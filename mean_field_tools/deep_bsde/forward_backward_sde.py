@@ -74,7 +74,7 @@ class BackwardSDE:
             terminal_brownian : values of the exogenous process at terminal time. Shape should be (num_paths, num_of_spatial_dimensions)
 
         Returns:
-            terminal_condition: value of the terminal condition of the BSDE for each of the sample paths.
+            terminal_condition: value of the terminal condition of the BSDE for each of the sample paths. Shape should be (num_paths, num_dimensions)
         """
         self.terminal_condition = self.terminal_condition_function(self.filtration)
 
@@ -94,7 +94,7 @@ class BackwardSDE:
         Returns:
             optimization_target : optimization target for elicitability method of conditional expectation calculation.
         """
-        optimization_target = terminal_condition.unsqueeze(-1)
+        optimization_target = terminal_condition.unsqueeze(1)
         optimization_target = optimization_target + drift_integral
 
         return optimization_target

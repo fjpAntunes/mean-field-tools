@@ -9,7 +9,7 @@ torch.manual_seed(0)
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 
 FILTRATION = Filtration(
-    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3
+    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3, seed=0
 )
 
 

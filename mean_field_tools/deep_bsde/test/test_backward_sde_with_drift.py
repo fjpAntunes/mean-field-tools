@@ -6,7 +6,7 @@ import torch
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 
 FILTRATION = Filtration(
-    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3
+    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3, seed=0
 )
 
 
@@ -52,7 +52,7 @@ def test_drift_integral_at_T():
 
 def test_set_terminal_condition():
     bsde, _ = setup()
-    benchmark = torch.Tensor([0.7749, 0.1563, 0.0753])
+    benchmark = torch.Tensor([[0.7749], [0.1563], [0.0753]])
     terminal_condition = bsde.set_terminal_condition()
     assert tensors_are_close(terminal_condition, benchmark, 1e-3)
 

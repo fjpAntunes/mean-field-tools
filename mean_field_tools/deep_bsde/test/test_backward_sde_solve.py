@@ -10,7 +10,7 @@ NUMBER_OF_PATHS = 100
 SPATIAL_DIMENSIONS = 1
 
 
-filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS)
+filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS, seed=0)
 
 bsde = BackwardSDE(
     terminal_condition_function=QUADRATIC_TERMINAL,
