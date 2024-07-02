@@ -8,11 +8,16 @@ TIME_DOMAIN = torch.linspace(0, 1, 101)
 NUMBER_OF_PATHS = 1000
 SPATIAL_DIMENSIONS = 1
 
-TERMINAL_CONDITION = lambda x: x**2
+
+def TERMINAL_CONDITION(filtration: Filtration):
+    B_T = filtration.brownian_process[:, -1, :]
+    return B_T**2
 
 
-def DRIFT(x):
-    return x[:, :, 1]
+def DRIFT(filtration: Filtration):
+    B_t = filtration.brownian_process
+
+    return B_t
 
 
 def ANALYTICAL_SOLUTION(x, t, T):
