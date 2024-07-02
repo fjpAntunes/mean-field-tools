@@ -45,6 +45,9 @@ def TERMINAL_CONDITION(filtration: Filtration):
 
 
 def setup():
+    FILTRATION = Filtration(
+        spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
+    )
 
     forward_sde = ForwardSDE(
         filtration=FILTRATION,

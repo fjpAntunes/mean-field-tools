@@ -2,7 +2,6 @@ from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, Backward
 from mean_field_tools.deep_bsde.utils import QUADRATIC_TERMINAL
 import torch
 
-torch.manual_seed(0)
 
 NUMBER_OF_TIMESTEPS = 101
 TIME_DOMAIN = torch.linspace(0, 1, NUMBER_OF_TIMESTEPS)
@@ -28,7 +27,7 @@ bsde.solve(
     }
 )
 
-approximate_solution = bsde.generate_paths(filtration)
+approximate_solution = bsde.generate_paths()
 
 
 def test_approximate_solution_shape():

@@ -3,9 +3,11 @@ from types import SimpleNamespace
 import torch
 
 
-function_approximator = FunctionApproximator(
-    domain_dimension=1, output_dimension=1, device="cpu"
-)
+def setup():
+    function_approximator = FunctionApproximator(
+        domain_dimension=1, output_dimension=1, device="cpu"
+    )
+    return function_approximator
 
 
 class MockDevice:
@@ -24,6 +26,7 @@ class MockTensor:
 
 def test_preprocess():
     """Preprocess should make input tensor be on same device as function_approximator."""
+    function_approximator = setup()
     mock_device = MockDevice(type="cuda")
     mock_input = MockTensor(device=mock_device)
     processed_input = function_approximator.preprocess(mock_input)
@@ -33,6 +36,7 @@ def test_preprocess():
 
 def test_postprocess():
     """If function_approximator is not training, should return output on cpu device for interactivity."""
+    function_approximator = setup()
     mock_device = MockDevice(type="cuda")
     mock_output = MockTensor(device=mock_device)
     processed_output = function_approximator.postprocess(
