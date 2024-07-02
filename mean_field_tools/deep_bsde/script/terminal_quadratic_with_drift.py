@@ -19,7 +19,7 @@ def ANALYTICAL_SOLUTION(x, t, T):
     return x**2 + (T - t) + (T**2 - t**2)
 
 
-filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS)
+filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS, seed=0)
 
 bsde = BackwardSDE(
     terminal_condition_function=TERMINAL_CONDITION,
