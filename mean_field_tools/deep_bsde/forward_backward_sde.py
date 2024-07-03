@@ -1,78 +1,58 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
-from typing import Callable
+from mean_field_tools.deep_bsde.filtration import Filtration
+from typing import Callable, List
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
 DriftType = Callable[
-    [torch.Tensor],  # Shape should be (num_paths, path_length, time_dim+spatial_dims)
-    torch.Tensor,  # Shape should be (num_paths, path_length)
+    [Filtration],
+    torch.Tensor,  # Shape should be (num_paths, path_length, spatial_dim)
 ]
 
 
-def zero_drift(x):
-    return x[:, :, 0] * 0
+def zero_drift(filtration: Filtration):
+    return filtration.time_process * 0
 
 
-class Filtration:
+class ForwardSDE:
+    """Implements stochastic process of the form X_t = f(t, B_t)"""
+
     def __init__(
         self,
-        spatial_dimensions: int,
-        time_domain,  # torch.linspace like
-        number_of_paths,
+        filtration: Filtration,
+        functional_form,
     ):
-        self.spatial_dimensions = spatial_dimensions
-        self.time_domain = time_domain
-        self.number_of_paths = number_of_paths
+        self.filtration = filtration
+        self.functional_form = functional_form
 
-    def generate_paths(self):
-        dt = self.time_domain[1] - self.time_domain[0]
-        self.brownian_increments = (
-            torch.randn(
-                size=(
-                    self.number_of_paths,
-                    len(self.time_domain) - 1,
-                    self.spatial_dimensions,
-                )
-            )
-            * dt**0.5
-        )
-        self.brownian_increments = torch.cat(
-            [
-                torch.zeros(size=(self.number_of_paths, 1, self.spatial_dimensions)),
-                self.brownian_increments,
-            ],
-            dim=1,
-        )
-        self.path_at_t = torch.cumsum(self.brownian_increments, axis=1)
-        t = self.time_domain.repeat(repeats=(self.number_of_paths, 1))
-        t = torch.unsqueeze(t, dim=-1)
-        self.brownian_paths = torch.cat([t, self.path_at_t], dim=2)
+    def generate_paths(self, filtration: Filtration):
+        self.paths = self.functional_form(filtration)
+        return self.paths
 
 
 class BackwardSDE:
     def __init__(
         self,
-        spatial_dimensions: int,
-        time_domain,  # torch.linspace like
-        terminal_condition_function,  # Callable over space dimensions
+        terminal_condition_function: Callable[[Filtration], torch.Tensor],
         filtration: Filtration,
         drift: DriftType = zero_drift,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
-        self.spatial_dimensions = spatial_dimensions
-        self.time_domain = time_domain
-        self.dt = self.time_domain[1] - self.time_domain[0]
         self.terminal_condition_function = terminal_condition_function
         self.drift = drift
         self.filtration = filtration
 
-    def initialize_approximator(self, nn_args: dict = {}):
+    def initialize_approximator(
+        self, nn_args: dict = {}
+    ):  # Maybe we could just pass a FunctionApproximator object on initialization
         self.y_approximator = FunctionApproximator(
-            domain_dimension=self.spatial_dimensions + 1, output_dimension=1, **nn_args
+            domain_dimension=self.filtration.spatial_dimensions + 1,
+            output_dimension=1,
+            **nn_args
         )
 
     def generate_paths(self):
-        return self.y_approximator(self.filtration.brownian_paths)
+        return self.y_approximator(self.filtration.get_paths())
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates drift path and backwards drift integral.
@@ -81,24 +61,23 @@ class BackwardSDE:
             self.drift_path : path of the drift function over the samples.
             self.drift_integral : backwards integral of the drift path over the samples.
         """
-        self.drift_path = self.drift(self.filtration.brownian_paths)
-        self.drift_integral = (
-            torch.sum(self.drift_path, dim=1) - torch.cumsum(self.drift_path, dim=1).T
-        )
-        self.drift_integral = self.drift_integral * self.dt
-        self.drift_integral = self.drift_integral.T.unsqueeze(-1)
+        self.drift_path = self.drift(self.filtration)
+        total = torch.sum(self.drift_path, dim=1).unsqueeze(1)
+        self.drift_integral = total - torch.cumsum(self.drift_path, dim=1)
+        self.drift_integral = self.drift_integral * self.filtration.dt
         return self.drift_path, self.drift_integral
 
-    def set_terminal_condition(self, terminal_brownian: torch.Tensor) -> torch.Tensor:
+    def set_terminal_condition(self) -> torch.Tensor:
         """Calculates terminal condition for the BSDE
 
         Args:
             terminal_brownian : values of the exogenous process at terminal time. Shape should be (num_paths, num_of_spatial_dimensions)
 
         Returns:
-            self.terminal_condition: value of the terminal condition of the BSDE for each of the sample paths.
+            terminal_condition: value of the terminal condition of the BSDE for each of the sample paths. Shape should be (num_paths, num_dimensions)
         """
-        self.terminal_condition = self.terminal_condition_function(terminal_brownian)
+        self.terminal_condition = self.terminal_condition_function(self.filtration)
+
         return self.terminal_condition
 
     def set_optimization_target(
@@ -115,19 +94,36 @@ class BackwardSDE:
         Returns:
             optimization_target : optimization target for elicitability method of conditional expectation calculation.
         """
-        optimization_target = terminal_condition + torch.swapaxes(drift_integral, 0, 2)
-        optimization_target = torch.swapaxes(optimization_target, 0, 2)
+        optimization_target = terminal_condition.unsqueeze(1)
+        optimization_target = optimization_target + drift_integral
+
         return optimization_target
 
     def solve(self, approximator_args: dict = None):
         _, drift_integral = self.set_drift_path()
-        terminal_brownian = self.filtration.brownian_paths[:, -1, 1]
-        terminal_condition = self.set_terminal_condition(terminal_brownian)
+        terminal_condition = self.set_terminal_condition()
         optimization_target = self.set_optimization_target(
             terminal_condition, drift_integral
         )
         self.y_approximator.minimize_over_sample(
-            self.filtration.brownian_paths, optimization_target, **approximator_args
+            self.filtration.get_paths(), optimization_target, **approximator_args
         )
 
-        return self.generate_paths()
+
+class ForwardBackwardSDE:
+    """This class manipulates both forward and backward SDE objects in order to implement Picard iterations numerical scheme."""
+
+    def __init__(
+        self, filtration: Filtration, forward_sde: ForwardSDE, backward_sde: BackwardSDE
+    ):
+        self.filtration = filtration
+        self.forward_sde = forward_sde
+        self.backward_sde = backward_sde
+
+    def _add_forward_process_to_filtration(self):
+        forward_process = self.forward_sde.functional_form(self.filtration)
+        self.filtration.forward_process = forward_process
+
+    def backward_solve(self, approximator_args: dict = {}):
+        self._add_forward_process_to_filtration()
+        self.backward_sde.solve(approximator_args)

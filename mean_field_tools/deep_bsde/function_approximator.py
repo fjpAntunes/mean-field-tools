@@ -77,7 +77,6 @@ class FunctionApproximatorArtist:
 
 
 class FunctionApproximator(nn.Module):
-
     def __init__(
         self,
         domain_dimension,
