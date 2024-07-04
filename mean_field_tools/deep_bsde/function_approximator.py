@@ -23,16 +23,20 @@ class FunctionApproximatorArtist:
         self.save_figures = save_figures
         self.analytical_solution = analytical_solution
 
+    def _handle_fig_output(self, path: str) -> None:
+        if self.save_figures:
+            plt.savefig(path)
+        else:
+            plt.plot()
+            plt.show()
+
     def plot_loss_history(self, number, loss_history):
         fig, axs = plt.subplots()
         iteration = range(len(loss_history))
         axs.plot(iteration, loss_history)
         axs.set_yscale("log")
-        if self.save_figures:
-            plt.savefig(f"./.figures/loss_plot_{number}")
-        else:
-            plt.plot()
-            plt.show()
+        path = f"./.figures/loss_plot_{number}"
+        self._handle_fig_output(path)
         plt.close()
 
     def plot_paths(
@@ -57,11 +61,10 @@ class FunctionApproximatorArtist:
             y = approximator(sample[i, :, :]).detach().cpu().numpy()
             axs[0].plot(t, x)
             axs[1].plot(t, y)
-        if self.save_figures:
-            plt.savefig(f"./.figures/sample_path_{iteration}.png")
-        else:
-            plt.plot()
-            plt.show()
+
+        path = f"./.figures/sample_path_{iteration}.png"
+        self._handle_fig_output(path)
+
         plt.close()
 
     def plot_fit_against_analytical(self, approximator, sample, number):
@@ -84,11 +87,9 @@ class FunctionApproximatorArtist:
                 axs[i].scatter(x, y, color="r", s=0.5, label="Analytical")
             axs[i].legend()
 
-        if self.save_figures:
-            plt.savefig(f"./.figures/fit_plot_{number}.png")
-        else:
-            plt.plot()
-            plt.show()
+        path = f"./.figures/fit_plot_{number}.png"
+
+        self._handle_fig_output(path)
         plt.close()
 
 
