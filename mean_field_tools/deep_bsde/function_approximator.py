@@ -30,6 +30,10 @@ class FunctionApproximatorArtist:
             plt.plot()
             plt.show()
 
+    def cast_to_np(self, tensor: torch.Tensor) -> np.ndarray:
+        """Casts tensor to numpy array for plotting."""
+        return tensor.detach().cpu().numpy()
+
     def plot_loss_history(self, number, loss_history):
         fig, axs = plt.subplots()
         iteration = range(len(loss_history))
@@ -55,14 +59,48 @@ class FunctionApproximatorArtist:
             iteration (int): training iteration.
         """
         fig, axs = plt.subplots(2, 1, layout="constrained")
-        t = sample[0, :, 0].detach().cpu().numpy()
+        t = self.cast_to_np(sample[0, :, 0])
         for i in range(number_of_paths):
-            x = sample[i, :, 1].detach().cpu().numpy()
-            y = approximator(sample[i, :, :]).detach().cpu().numpy()
+            x = self.cast_to_np(sample[i, :, 1])
+            y = self.cast_to_np(approximator(sample[i, :, :]))
             axs[0].plot(t, x)
             axs[1].plot(t, y)
 
         path = f"./.figures/sample_path_{iteration}.png"
+        self._handle_fig_output(path)
+
+        plt.close()
+
+    def plot_single_path(
+        self,
+        approximator: nn.Module,
+        sample: torch.Tensor,
+        iteration: int,
+    ):
+        """Plot a single realization of the forward process,
+        the analytical solution for the backward proccess
+        and the estimated backward process.
+
+        Args:
+            approximator (nn.Module): function approximator object.
+            sample (torch.Tensor): sample used in training
+            number_of_paths (int): number of paths to be plotted.
+            iteration (int): training iteration.
+        """
+        fig, axs = plt.subplots(2, 1, layout="constrained")
+        t = self.cast_to_np(sample[0, :, 0])
+        T = self.cast_to_np(sample[0, -1, 0])
+        x = self.cast_to_np(sample[0, :, 1])
+        y_hat = self.cast_to_np(approximator(sample[0, :, :]))
+        if self.analytical_solution:
+            y = self.analytical_solution(x, t, T)
+
+        axs[0].plot(t, x, label="Forward")
+        axs[1].plot(t, y_hat, color="b", label="Backward - Approximation")
+        axs[1].plot(t, y, color="r", label="Backward - Analytical")
+        for i in [0, 1]:
+            axs[i].legend()
+        path = f"./.figures/single_path_{iteration}.png"
         self._handle_fig_output(path)
 
         plt.close()
@@ -72,12 +110,12 @@ class FunctionApproximatorArtist:
         _, time_length, _ = sample.shape
         for i, time_index in enumerate([0, time_length // 2, time_length - 1]):
             x = sample[:, time_index, 1]
-            T = sample[0, -1, 0].detach().cpu().numpy()
+            T = self.cast_to_np(sample[0, -1, 0])
             t = T * (time_index / time_length)
             y_hat = approximator(sample)[:, time_index, 0]
 
-            x = x.reshape(-1).detach().cpu().numpy()
-            y_hat = y_hat.reshape(-1).detach().cpu().numpy()
+            x = self.cast_to_np(x.reshape(-1))
+            y_hat = self.cast_to_np(y_hat.reshape(-1))
 
             axs[i].set_ylim(0, 2)
             axs[i].set_xlim(-1.5, 1.5)
@@ -251,6 +289,9 @@ class FunctionApproximator(nn.Module):
                     sample=batch_sample,
                     number_of_paths=20,
                     iteration=j,
+                )
+                plotter.plot_single_path(
+                    approximator=self, sample=batch_sample, iteration=j
                 )
 
         self.is_training = False
