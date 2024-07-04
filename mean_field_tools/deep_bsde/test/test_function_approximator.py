@@ -5,7 +5,11 @@ import torch
 
 def setup():
     function_approximator = FunctionApproximator(
-        domain_dimension=1, output_dimension=1, device="cpu"
+        number_of_layers=2,
+        number_of_nodes=2,
+        domain_dimension=2,
+        output_dimension=1,
+        device="cpu",
     )
     return function_approximator
 
@@ -80,3 +84,40 @@ def test_generate_sample_batch_target():
     benchmark = torch.Tensor([[[4.0, 4.0], [9.0, 4.0], [16.0, 4.0], [25.0, 4.0]]])
 
     assert tensors_are_close(batch_target, benchmark)
+
+
+def test_single_training_step():
+    approximator = setup()
+    approximator.training_setup()
+    sample = torch.Tensor(
+        [
+            [[0, 0], [1, 0], [2, 0], [3, 0]],
+            [[1, 1], [2, 1], [3, 1], [4, 1]],
+            [[2, 2], [3, 2], [4, 2], [5, 2]],
+        ]
+    )
+    target = sample**2
+    batch_sample, batch_target = approximator._generate_batch(
+        batch_size=1, sample=sample, target=target, seed=0
+    )
+
+    approximator.single_training_step(batch_sample, batch_target)
+
+    benchmark = {
+        "input.weight": [
+            [-0.5869807600975037, -0.5253874659538269],
+            [-0.2773452401161194, 0.18461589515209198],
+        ],
+        "input.bias": [-0.019010011106729507, 0.5556575059890747],
+        "hidden.0.weight": [
+            [-0.05775151774287224, 0.19210933148860931],
+            [-0.21869690716266632, -0.14399270713329315],
+        ],
+        "hidden.0.bias": [-0.6805334091186523, -0.46330416202545166],
+        "output.weight": [[-0.2964857518672943, 0.021193761378526688]],
+        "output.bias": [0.2845441997051239],
+    }
+
+    output = {name: param.tolist() for name, param in approximator.named_parameters()}
+
+    assert benchmark == output

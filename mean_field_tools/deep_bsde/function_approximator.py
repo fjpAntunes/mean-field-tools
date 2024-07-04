@@ -83,6 +83,7 @@ class FunctionApproximator(nn.Module):
         output_dimension,
         number_of_layers=5,
         number_of_nodes=36,
+        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
         optimizer=optim.Adam,
         optimizer_params={"lr": 0.005},
         scheduler=optim.lr_scheduler.StepLR,
@@ -113,6 +114,8 @@ class FunctionApproximator(nn.Module):
         self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
 
         self.activation = nn.SiLU()
+
+        self.scoring = scoring
 
     def preprocess(self, input):
         if input.device.type != self.device:
@@ -166,20 +169,8 @@ class FunctionApproximator(nn.Module):
 
         return batch_sample, batch_target
 
-    def minimize_over_sample(
-        self,
-        sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
-        target,  # shape :  (output_dimension, sample_size)
-        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
-        batch_size=512,
-        number_of_iterations=10_000,
-        number_of_epochs=100,
-        number_of_plots=10,
-        plotter: FunctionApproximatorArtist = None,
-    ):
-        import pdb
-
-        pdb.set_trace()
+    def training_setup(self):
+        """Pre-training object state configuration."""
         self.is_training = True
         self.optimizer = self.sgd_parameters["optimizer"](
             self.parameters(), **self.sgd_parameters["optimizer_params"]
@@ -189,22 +180,51 @@ class FunctionApproximator(nn.Module):
         )
         self.loss_history = []
         self.loss_recent_history = []
+        return None
+
+    def single_training_step(
+        self, batch_sample: torch.Tensor, batch_target: torch.Tensor
+    ):
+        """Performs a single step of gradient descent.
+
+        Args:
+            batch_sample (torch.Tensor): Sampled paths.
+            batch_target (torch.Tensor): Optimization targets for the sampled paths.
+
+        Returns:
+            None.
+        """
+
+        estimated = self(batch_sample)
+        empirical_loss = torch.mean(self.scoring(estimated, batch_target))
+        self.optimizer.zero_grad()
+        empirical_loss.backward()
+        self.optimizer.step()
+        self.scheduler.step()
+        self._append_loss_moving_average(empirical_loss.item(), window_size=100)
+
+        return None
+
+    def minimize_over_sample(
+        self,
+        sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
+        target,  # shape :  (output_dimension, sample_size)
+        batch_size=512,
+        number_of_iterations=10_000,
+        number_of_epochs=100,
+        number_of_plots=10,
+        plotter: FunctionApproximatorArtist = None,
+    ):
+        self.training_setup()
 
         for j in range(1, number_of_epochs + 1):
             print(f"Epoch {j}")
             batch_sample, batch_target = self._generate_batch(
                 batch_size, sample, target
             )
+
             for i in tqdm(range(number_of_iterations // number_of_epochs)):
-                estimated = self(batch_sample)
-
-                empirical_loss = torch.mean(scoring(estimated, batch_target))
-                self.optimizer.zero_grad()
-                empirical_loss.backward()
-                self.optimizer.step()
-                self.scheduler.step()
-
-                self._append_loss_moving_average(empirical_loss.item(), window_size=100)
+                self.single_training_step(batch_sample, batch_target)
 
             if plotter and np.mod(j, number_of_epochs // number_of_plots) == 0:
                 plotter.plot_loss_history(j, self.loss_history)
