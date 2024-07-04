@@ -136,6 +136,36 @@ class FunctionApproximator(nn.Module):
         out = self.postprocess(out, training_status=self.is_training)
         return out
 
+    def _generate_batch(
+        self,
+        batch_size: int,
+        sample: torch.Tensor,
+        target: torch.Tensor,
+        seed: int = None,
+    ):
+        """Implements random sampling with replacement over paths of tensor.
+
+        Args:
+            batch_size (int): size of batch used in each training epoch.
+            sample (torch.Tensor): sample tensor.
+            target (torch.Tensor): optimization target tensor.
+            seed (int): (Optional) random seed.
+
+        Returns:
+            batch_sample (torch.Tensor): sampled paths.
+            batch_target (torch.Tensor): optimization targets for the sampled paths.
+        """
+        if seed is not None:
+            torch.manual_seed(seed)
+
+        sample_size = sample.shape[0]
+
+        batch_index = torch.randperm(sample_size)[:batch_size]
+        batch_sample = sample[batch_index, :, :].to(self.device)
+        batch_target = target[batch_index, :, :].to(self.device)
+
+        return batch_sample, batch_target
+
     def minimize_over_sample(
         self,
         sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
@@ -147,6 +177,9 @@ class FunctionApproximator(nn.Module):
         number_of_plots=10,
         plotter: FunctionApproximatorArtist = None,
     ):
+        import pdb
+
+        pdb.set_trace()
         self.is_training = True
         self.optimizer = self.sgd_parameters["optimizer"](
             self.parameters(), **self.sgd_parameters["optimizer_params"]
@@ -154,15 +187,14 @@ class FunctionApproximator(nn.Module):
         self.scheduler = self.sgd_parameters["scheduler"](
             self.optimizer, **self.sgd_parameters["scheduler_params"]
         )
-        sample_size = sample.shape[0]
         self.loss_history = []
         self.loss_recent_history = []
 
         for j in range(1, number_of_epochs + 1):
             print(f"Epoch {j}")
-            batch_index = torch.randperm(sample_size)[:batch_size]
-            batch_sample = sample[batch_index, :, :].to(self.device)
-            batch_target = target[batch_index, :, :].to(self.device)
+            batch_sample, batch_target = self._generate_batch(
+                batch_size, sample, target
+            )
             for i in tqdm(range(number_of_iterations // number_of_epochs)):
                 estimated = self(batch_sample)
 

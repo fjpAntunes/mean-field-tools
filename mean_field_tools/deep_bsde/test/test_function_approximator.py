@@ -1,5 +1,5 @@
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
-from types import SimpleNamespace
+from mean_field_tools.deep_bsde.utils import tensors_are_close
 import torch
 
 
@@ -44,3 +44,39 @@ def test_postprocess():
     )
 
     assert processed_output.device.type == "cpu"
+
+
+def test_generate_sample_batch():
+    approximator = setup()
+    sample = torch.Tensor(
+        [
+            [[0, 0], [1, 0], [2, 0], [3, 0]],
+            [[1, 1], [2, 1], [3, 1], [4, 1]],
+            [[2, 2], [3, 2], [4, 2], [5, 2]],
+        ]
+    )
+    target = sample**2
+    batch, _ = approximator._generate_batch(
+        batch_size=1, sample=sample, target=target, seed=0
+    )
+    benchmark = torch.Tensor([[[2.0, 2.0], [3.0, 2.0], [4.0, 2.0], [5.0, 2.0]]])
+
+    assert tensors_are_close(batch, benchmark)
+
+
+def test_generate_sample_batch_target():
+    approximator = setup()
+    sample = torch.Tensor(
+        [
+            [[0, 0], [1, 0], [2, 0], [3, 0]],
+            [[1, 1], [2, 1], [3, 1], [4, 1]],
+            [[2, 2], [3, 2], [4, 2], [5, 2]],
+        ]
+    )
+    target = sample**2
+    _, batch_target = approximator._generate_batch(
+        batch_size=1, sample=sample, target=target, seed=0
+    )
+    benchmark = torch.Tensor([[[4.0, 4.0], [9.0, 4.0], [16.0, 4.0], [25.0, 4.0]]])
+
+    assert tensors_are_close(batch_target, benchmark)
