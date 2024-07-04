@@ -35,14 +35,30 @@ class FunctionApproximatorArtist:
             plt.show()
         plt.close()
 
-    def plot_sample_paths(self, sample, number):
-        fig, axs = plt.subplots()
+    def plot_paths(
+        self,
+        approximator: nn.Module,
+        sample: torch.Tensor,
+        number_of_paths: int,
+        iteration: int,
+    ):
+        """Plots paths of forward proccess and backward process along training.
+
+        Args:
+            approximator (nn.Module): function approximator object.
+            sample (torch.Tensor): sample used in training
+            number_of_paths (int): number of paths to be plotted.
+            iteration (int): training iteration.
+        """
+        fig, axs = plt.subplots(2, 1, layout="constrained")
         t = sample[0, :, 0].detach().cpu().numpy()
-        for i in range(sample.shape[0]):
+        for i in range(number_of_paths):
             x = sample[i, :, 1].detach().cpu().numpy()
-            axs.plot(t, x)
+            y = approximator(sample[i, :, :]).detach().cpu().numpy()
+            axs[0].plot(t, x)
+            axs[1].plot(t, y)
         if self.save_figures:
-            plt.savefig(f"./.figures/sample_path_{number}.png")
+            plt.savefig(f"./.figures/sample_path_{iteration}.png")
         else:
             plt.plot()
             plt.show()
@@ -229,7 +245,12 @@ class FunctionApproximator(nn.Module):
             if plotter and np.mod(j, number_of_epochs // number_of_plots) == 0:
                 plotter.plot_loss_history(j, self.loss_history)
                 plotter.plot_fit_against_analytical(self, batch_sample, j)
-                plotter.plot_sample_paths(batch_sample, j)
+                plotter.plot_paths(
+                    approximator=self,
+                    sample=batch_sample,
+                    number_of_paths=20,
+                    iteration=j,
+                )
 
         self.is_training = False
 
