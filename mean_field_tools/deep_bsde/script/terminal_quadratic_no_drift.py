@@ -4,24 +4,23 @@ from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, Backward
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
 
-
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 NUMBER_OF_PATHS = 1000
 SPATIAL_DIMENSIONS = 1
 
-
-def TERMINAL_CONDITION(filtration: Filtration):
-    B_T = filtration.brownian_process[:, -1, :]
-    return B_T**2
+TERMINAL_CONDITION = lambda x: x**2
 
 
 def ANALYTICAL_SOLUTION(x, t, T):
     return x**2 + (T - t)
 
 
-filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS, seed=0)
+filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS)
+filtration.generate_paths()
 
 bsde = BackwardSDE(
+    spatial_dimensions=SPATIAL_DIMENSIONS,
+    time_domain=TIME_DOMAIN,
     terminal_condition_function=TERMINAL_CONDITION,
     filtration=filtration,
 )
