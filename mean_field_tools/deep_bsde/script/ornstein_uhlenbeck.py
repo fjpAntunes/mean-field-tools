@@ -54,6 +54,7 @@ forward_sde = ForwardSDE(
 backward_sde = BackwardSDE(
     terminal_condition_function=TERMINAL_CONDITION,
     filtration=FILTRATION,
+    exogenous_process=["time_process", "brownian_process", "forward_process"],
     drift=BACKWARD_DRIFT,
 )
 backward_sde.initialize_approximator()
@@ -76,3 +77,7 @@ APPROXIMATOR_ARGS = {
 }
 
 forward_backward_sde.backward_solve(approximator_args=APPROXIMATOR_ARGS)
+
+import pdb
+
+pdb.set_trace()

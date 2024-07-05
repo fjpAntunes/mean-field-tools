@@ -92,12 +92,12 @@ class FunctionApproximatorArtist:
         T = self.cast_to_np(sample[0, -1, 0])
         x = self.cast_to_np(sample[0, :, 1])
         y_hat = self.cast_to_np(approximator(sample[0, :, :]))
-        if self.analytical_solution:
-            y = self.analytical_solution(x, t, T)
-
         axs[0].plot(t, x, label="Forward")
         axs[1].plot(t, y_hat, color="b", label="Backward - Approximation")
-        axs[1].plot(t, y, color="r", label="Backward - Analytical")
+        if self.analytical_solution:
+            y = self.analytical_solution(x, t, T)
+            axs[1].plot(t, y, color="r", label="Backward - Analytical")
+
         for i in [0, 1]:
             axs[i].legend()
         path = f"./.figures/single_path_{iteration}.png"

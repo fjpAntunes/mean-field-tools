@@ -97,6 +97,8 @@ class Filtration:
         self.processes = [
             self.time_process,
             self.brownian_process,
+            self.forward_process,
+            self.backward_process,
         ]
 
     def _generate_time_process(self):
@@ -112,4 +114,15 @@ class Filtration:
         return brownian_process
 
     def get_paths(self):
-        return torch.cat(self.processes, dim=2)
+        processes = []
+        for process in [
+            self.time_process,
+            self.brownian_process,
+            self.forward_process,
+            self.backward_process,
+        ]:
+            if process is not None:
+                processes.append(process)
+        out = torch.cat(processes, dim=2)
+
+        return out
