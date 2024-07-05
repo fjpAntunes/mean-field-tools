@@ -36,23 +36,30 @@ class BackwardSDE:
         self,
         terminal_condition_function: Callable[[Filtration], torch.Tensor],
         filtration: Filtration,
+        exogenous_process=["time_process", "brownian_process"],
         drift: DriftType = zero_drift,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
         self.terminal_condition_function = terminal_condition_function
         self.drift = drift
         self.filtration = filtration
+        self.exogenous_process = exogenous_process
 
     def initialize_approximator(
         self, nn_args: dict = {}
     ):  # Maybe we could just pass a FunctionApproximator object on initialization
+        number_of_spatial_processes = len(self.exogenous_process) - 1
+        domain_dimensions = (
+            1 + number_of_spatial_processes * self.filtration.spatial_dimensions
+        )
         self.y_approximator = FunctionApproximator(
-            domain_dimension=self.filtration.spatial_dimensions + 1,
-            output_dimension=1,
+            domain_dimension=domain_dimensions,
+            output_dimension=self.filtration.spatial_dimensions,
             **nn_args
         )
 
     def generate_paths(self):
-        return self.y_approximator(self.filtration.get_paths())
+        input = self.set_approximator_input()
+        return self.y_approximator(input)
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates drift path and backwards drift integral.
@@ -99,14 +106,23 @@ class BackwardSDE:
 
         return optimization_target
 
+    def set_approximator_input(self):
+        processes = [
+            self.filtration.__dict__.get(name) for name in self.exogenous_process
+        ]
+        out = torch.cat(processes, dim=2)
+        return out
+
     def solve(self, approximator_args: dict = None):
         _, drift_integral = self.set_drift_path()
         terminal_condition = self.set_terminal_condition()
         optimization_target = self.set_optimization_target(
             terminal_condition, drift_integral
         )
+        optimization_input = self.set_approximator_input()
+
         self.y_approximator.minimize_over_sample(
-            self.filtration.get_paths(), optimization_target, **approximator_args
+            optimization_input, optimization_target, **approximator_args
         )
 
 
