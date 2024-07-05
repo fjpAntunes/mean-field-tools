@@ -1,5 +1,5 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.utils import tensors_are_close
+from mean_field_tools.deep_bsde.utils import tensors_are_close, QUADRATIC_TERMINAL
 import torch
 
 torch.manual_seed(0)
@@ -9,22 +9,18 @@ torch.manual_seed(0)
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 
 FILTRATION = Filtration(
-    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3
+    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=3, seed=0
 )
 
-FILTRATION.generate_paths()
 
 zero_drift_bsde = BackwardSDE(
-    spatial_dimensions=1,
-    time_domain=TIME_DOMAIN,
-    terminal_condition_function=lambda x: x**2,
+    terminal_condition_function=QUADRATIC_TERMINAL,
     filtration=FILTRATION,
 )
 _, integral = zero_drift_bsde.set_drift_path()
 
 
-terminal_brownian = zero_drift_bsde.filtration.brownian_paths[:, -1, 1]
-terminal_condition = zero_drift_bsde.set_terminal_condition(terminal_brownian)
+terminal_condition = zero_drift_bsde.set_terminal_condition()
 
 optimization_target = zero_drift_bsde.set_optimization_target(
     terminal_condition=zero_drift_bsde.terminal_condition,
