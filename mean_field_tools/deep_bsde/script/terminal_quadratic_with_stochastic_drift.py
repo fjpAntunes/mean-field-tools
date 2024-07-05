@@ -15,12 +15,13 @@ def TERMINAL_CONDITION(filtration: Filtration):
 
 
 def DRIFT(filtration: Filtration):
-    t = filtration.time_process
-    return 2 * t
+    B_t = filtration.brownian_process
+
+    return B_t
 
 
 def ANALYTICAL_SOLUTION(x, t, T):
-    return x**2 + (T - t) + (T**2 - t**2)
+    return x**2 + (T - t) + x * (T - t)
 
 
 filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS, seed=0)
