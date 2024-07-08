@@ -8,6 +8,7 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
 )
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
+import numpy as np
 
 TIME_DOMAIN = torch.linspace(0, 1, 101)
 NUMBER_OF_PATHS = 1000
@@ -42,6 +43,14 @@ def TERMINAL_CONDITION(filtration: Filtration):
     return X_T**2
 
 
+def ANALYTICAL_SOLUTION(x, t, T):
+    return (
+        x**2 * np.exp(-2 * K * (T - t))
+        + ((1 - np.exp(-2 * K * (T - t))) / (2 * K))
+        + 2 * x * ((1 - np.exp(-K * (T - t))) / K)
+    )
+
+
 FILTRATION = Filtration(
     spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
 )
@@ -65,7 +74,7 @@ forward_backward_sde = ForwardBackwardSDE(
 
 
 artist = FunctionApproximatorArtist(
-    save_figures=True,  # analytical_solution=ANALYTICAL_SOLUTION
+    save_figures=True, analytical_solution=ANALYTICAL_SOLUTION
 )
 
 APPROXIMATOR_ARGS = {

@@ -37,6 +37,7 @@ class FunctionApproximatorArtist:
     def plot_loss_history(self, number, loss_history):
         fig, axs = plt.subplots()
         iteration = range(len(loss_history))
+        axs.set_title("Loss history")
         axs.plot(iteration, loss_history)
         axs.set_yscale("log")
         path = f"./.figures/loss_plot_{number}"
@@ -66,6 +67,9 @@ class FunctionApproximatorArtist:
             axs[0].plot(t, x)
             axs[1].plot(t, y)
 
+        axs[0].set_title("Forward process sample paths")
+        axs[1].set_title("Backward process sample paths")
+
         path = f"./.figures/sample_path_{iteration}.png"
         self._handle_fig_output(path)
 
@@ -92,11 +96,11 @@ class FunctionApproximatorArtist:
         T = self.cast_to_np(sample[0, -1, 0])
         x = self.cast_to_np(sample[0, :, 1])
         y_hat = self.cast_to_np(approximator(sample[0, :, :]))
-        axs[0].plot(t, x, label="Forward")
-        axs[1].plot(t, y_hat, color="b", label="Backward - Approximation")
+        axs[0].plot(t, x, label="Forward Process")
+        axs[1].plot(t, y_hat, color="b", label="Backward Process - Approximation")
         if self.analytical_solution:
             y = self.analytical_solution(x, t, T)
-            axs[1].plot(t, y, color="r", label="Backward - Analytical")
+            axs[1].plot(t, y, color="r", label="Backward Process - Analytical")
 
         for i in [0, 1]:
             axs[i].legend()
@@ -117,8 +121,9 @@ class FunctionApproximatorArtist:
             x = self.cast_to_np(x.reshape(-1))
             y_hat = self.cast_to_np(y_hat.reshape(-1))
 
-            axs[i].set_ylim(0, 2)
-            axs[i].set_xlim(-1.5, 1.5)
+            # axs[i].set_ylim(0, 2)
+            # axs[i].set_xlim(-1.5, 1.5)
+            axs[i].set_title(f"t = {np.round(t, decimals=1)}")
             axs[i].scatter(x, y_hat, color="b", s=0.5, label="Approximation")
             if self.analytical_solution:
                 y = self.analytical_solution(x, t, T)  # x**2 + (T - t)
