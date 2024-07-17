@@ -52,7 +52,10 @@ def ANALYTICAL_SOLUTION(x, t, T):
 
 
 FILTRATION = Filtration(
-    spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
+    spatial_dimensions=1,
+    time_domain=TIME_DOMAIN,
+    number_of_paths=NUMBER_OF_PATHS,
+    seed=0,
 )
 
 forward_sde = ForwardSDE(

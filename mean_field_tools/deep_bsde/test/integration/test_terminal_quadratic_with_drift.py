@@ -1,4 +1,11 @@
-"""Tests quadratic with drift"""
+"""Tests quadratic with drift
+Equation:
+$$
+dY_t =-2t\, dt Z_t\, dW_t, \quad Y_T = W^2_T, \\
+$$
+Where $W_t$ is the standard brownian motion.
+
+"""
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
@@ -6,6 +13,9 @@ import torch
 
 
 def test_terminal_quadratic_with_deterministic_drift():
+    """
+    Tests BSDE solver for the equation
+    """
     TIME_DOMAIN = torch.linspace(0, 1, 101)
     NUMBER_OF_PATHS = 100
     SPATIAL_DIMENSIONS = 1
