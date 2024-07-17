@@ -101,7 +101,7 @@ def test_single_training_step():
         batch_size=1, sample=sample, target=target, seed=0
     )
 
-    approximator.single_training_step(batch_sample, batch_target)
+    approximator.single_gradient_descent_step(batch_sample, batch_target)
 
     benchmark = {
         "input.weight": [
