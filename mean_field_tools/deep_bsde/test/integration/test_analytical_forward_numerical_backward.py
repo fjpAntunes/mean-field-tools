@@ -1,8 +1,8 @@
 """Tests Ornstein-Uhlenbeck as forward process
 Equation:
 $$
-dX_t = -kX_t dt + dW_t,\quad X_0 = 0, \\
-dY_t = -2X_t dt + Z_t dW_t, \quad Y_T = X^2_T, \\
+dX_t = -kX_t dt + dW_t, X_0 = 0, \\
+dY_t = -2X_t dt + Z_t dW_t, Y_T = X^2_T, \\
 $$
 """
 

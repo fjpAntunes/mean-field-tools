@@ -1,4 +1,4 @@
-"""Tests terminal quadratic condition with no drift
+r"""Tests terminal quadratic condition with no drift
 Equation:
 $$
 dY_t = Z_t dW_t, \quad Y_T = W^2_T, \\

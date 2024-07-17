@@ -1,4 +1,4 @@
-"""Tests quadratic with drift
+r"""Tests quadratic with drift
 Equation:
 $$
 dY_t = -B_tdt + Z_t dB_t, \quad Y_T = B^2_T, \\
