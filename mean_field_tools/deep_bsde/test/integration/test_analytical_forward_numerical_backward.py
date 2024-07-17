@@ -1,4 +1,10 @@
-"""Tests Ornstein-Uhlenbeck as forward process"""
+"""Tests Ornstein-Uhlenbeck as forward process
+Equation:
+$$
+dX_t = -kX_t dt + dW_t,\quad X_0 = 0, \\
+dY_t = -2X_t dt + Z_t dW_t, \quad Y_T = X^2_T, \\
+$$
+"""
 
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
