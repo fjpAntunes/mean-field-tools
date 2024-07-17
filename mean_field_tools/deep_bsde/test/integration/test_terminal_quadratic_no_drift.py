@@ -1,4 +1,10 @@
-"""Tests quadratic no drift"""
+"""Tests terminal quadratic condition with no drift
+Equation:
+$$
+dY_t = Z_t dW_t, \quad Y_T = W^2_T, \\
+$$
+Where $W_t$ is the standard brownian motion.
+"""
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
