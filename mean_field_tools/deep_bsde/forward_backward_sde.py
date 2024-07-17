@@ -32,13 +32,40 @@ class ForwardSDE:
 
 
 class BackwardSDE:
+    """This class holds the logic related to the dynamics and solution through elicitability of a backward stochastic equation of the form
+    $$
+    d Y_t = -f(t,X_t,Y_t) dt + Z_t dW_t, \quad Y_T = \xi
+    $$
+    In general, the solution can be written as
+    $$
+    Y_t = \mathbb{E}[ \xi + \int_t^T f(s,X_s,Y_s) ds | \mathcal{F}_t ].
+    $$
+    In order to calculate this conditional expectation, we rewrite it as
+    $$
+    \mathbb{E}[ \xi + \int_t^T f(s,X_s,Y_s) ds | \mathcal{F}_t ] =  \arg \min_{Y \in \mathcal{F}_t} \mathbb{E}[(\xi + \int_t^T f(s,X_s,Y_s) ds - Y)^2]
+    $$
+    Now, $Y \in \mathcal{F}_t$ is a random variable - that is, it is a function 
+    $Y: \Omega \mapsto \mathbb{R}^d$ such that $Y^{-1}$ is $\mathcal{F}_t$ measurable.
+    In order to find an approximate solution to the minimization problem, we minimize 
+    the expectation over the set of functions expressed as the output of neural networks.
+    """
     def __init__(
         self,
         terminal_condition_function: Callable[[Filtration], torch.Tensor],
         filtration: Filtration,
         exogenous_process=["time_process", "brownian_process"],
         drift: DriftType = zero_drift,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
-    ):
+    ):  
+        """Initialization function of the class.
+
+        Args:
+            terminal_condition_function (Callable[[Filtration], torch.Tensor]): Terminal condition $\xi$ for the BSDE. Should be a function of the filtration.
+            filtration (Filtration): Filtration object that holds the state of the processes in a time structured manner.
+            exogenous_process (list, optional): Processes on which the BSDE depends.
+              possible processes are "time_process", "brownian_process", "forward_process", "backward_process".
+              Defaults to ["time_process", "brownian_process"].
+            drift (DriftType, optional): Drift function $f$ for the BSDE. Note the sign convention. Defaults to zero_drift.
+        """
         self.terminal_condition_function = terminal_condition_function
         self.drift = drift
         self.filtration = filtration
@@ -47,6 +74,11 @@ class BackwardSDE:
     def initialize_approximator(
         self, nn_args: dict = {}
     ):  # Maybe we could just pass a FunctionApproximator object on initialization
+        """Initializes FunctionApproximator neural net class to use in the elicitability solver.
+
+        Args:
+            nn_args (dict, optional): Optional args for FunctionApproximator class. Defaults to {}.
+        """
         number_of_spatial_processes = len(self.exogenous_process) - 1
         domain_dimensions = (
             1 + number_of_spatial_processes * self.filtration.spatial_dimensions
@@ -62,7 +94,8 @@ class BackwardSDE:
         return self.y_approximator(input)
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculates drift path and backwards drift integral.
+        """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,
+          and the backwards drift integral $\int_t^T f(s,X_s,Y_s) ds$.
 
         Returns:
             self.drift_path : path of the drift function over the samples.
@@ -106,7 +139,17 @@ class BackwardSDE:
 
         return optimization_target
 
-    def set_approximator_input(self):
+    def set_approximator_input(self) -> torch.Tensor:
+        """Creates tensor input for the FunctionApproximator object, using the processes over which the BSDE depends.
+        
+        In order to find an approximate solution to the minimization problem
+        $$Y_t = \arg \min_{Y \in \mathcal{F}_t} \mathbb{E}[(\xi + \int_t^T f(s,X_s,Y_s) ds - Y)^2]$$
+        we parameterize $Y(\omega), \omega \in \mathcal{F}_t$ as the output of a neural network $NN_{w}(\omega)$.
+        
+        This function creates a tensor to represent the input $\omega$ for each equivalent time $t$ and sample path. 
+        Returns:
+            torch.Tensor: input tensor for the FunctionApproximator object.
+        """
         processes = [
             self.filtration.__dict__.get(name) for name in self.exogenous_process
         ]
@@ -114,6 +157,12 @@ class BackwardSDE:
         return out
 
     def solve(self, approximator_args: dict = None):
+        """Performs the minimization step in order to calculate the conditional expectation through the elicitability method.
+        
+
+        Args:
+            approximator_args (dict, optional): _description_. Defaults to None.
+        """
         _, drift_integral = self.set_drift_path()
         terminal_condition = self.set_terminal_condition()
         optimization_target = self.set_optimization_target(
