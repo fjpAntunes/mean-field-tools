@@ -1,4 +1,12 @@
-"""Tests quadratic with drift"""
+"""Tests quadratic with drift
+Equation:
+$$
+dY_t = -B_tdt + Z_t dB_t, \quad Y_T = B^2_T, \\
+$$
+Where $W_t$ is the standard brownian motion.
+Writing the equation in the form $dY_t = - f(t,B_t)dt + Z_t dB_t$,
+we have $f(t,B_t) = B_t$.
+"""
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
