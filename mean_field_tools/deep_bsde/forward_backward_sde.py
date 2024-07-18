@@ -70,7 +70,21 @@ class BackwardSDE:
         self.terminal_condition_function = terminal_condition_function
         self.drift = drift
         self.filtration = filtration
-        self.exogenous_process = exogenous_process
+        self._set_exogenous_process(exogenous_process_list=exogenous_process)
+
+    def _set_exogenous_process(self, exogenous_process_list: list):
+        for process in exogenous_process_list:
+            if process not in [
+                "time_process",
+                "brownian_process",
+                "forward_process",
+                "backward_process",
+            ]:
+                raise ValueError(
+                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process", "backward_process"'
+                )
+
+        self.exogenous_process = exogenous_process_list
 
     def initialize_approximator(
         self, nn_args: dict = {}
@@ -92,7 +106,7 @@ class BackwardSDE:
 
     def generate_paths(self):
         input = self.set_approximator_input()
-        return self.y_approximator(input)
+        return self.y_approximator.detached_call(input)
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,
@@ -190,6 +204,26 @@ class ForwardBackwardSDE:
         forward_process = self.forward_sde.functional_form(self.filtration)
         self.filtration.forward_process = forward_process
 
-    def backward_solve(self, approximator_args: dict = {}):
+    def _add_backward_process_to_filtration(self):
+        backward_process = self.backward_sde.generate_paths()
+        self.filtration.backward_process = backward_process
+
+    def _single_picard_step(self, approximator_args: dict = {}):
+        """Performs a single step of the Picard operator for the backward SDE.
+
+        Args:
+            approximator_args (dict, optional): Arguments for the neural network training. Defaults to {}.
+        """
         self._add_forward_process_to_filtration()
         self.backward_sde.solve(approximator_args)
+
+    def backward_solve(self, number_of_iterations: int, approximator_args: dict = {}):
+        self._add_forward_process_to_filtration()
+        if "backward_process" not in self.backward_sde.exogenous_process:
+            self._single_picard_step(approximator_args)
+
+        if "backward_process" in self.backward_sde.exogenous_process:
+            self.filtration.backward_process = self.filtration.forward_process
+            for _ in range(number_of_iterations):
+                self._single_picard_step(approximator_args)
+                self._add_backward_process_to_filtration()

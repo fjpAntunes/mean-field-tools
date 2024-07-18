@@ -199,6 +199,9 @@ class FunctionApproximator(nn.Module):
         out = self.postprocess(out, training_status=self.is_training)
         return out
 
+    def detached_call(self, x):
+        return self.forward(x).detach()
+
     def _generate_batch(
         self,
         batch_size: int,
@@ -329,11 +332,10 @@ class FunctionApproximator(nn.Module):
         target,  # shape :  (output_dimension, sample_size)
         training_strategy: Callable = None,
         training_strategy_args: dict = {
-            "batch_size": 512,
-            "number_of_iterations": 10_000,
-            "number_of_batches": 100,
-            "number_of_plots": 10,
-            "plotter": None,
+            "batch_size": 100,
+            "number_of_iterations": 500,
+            "number_of_batches": 5,
+            "number_of_plots": 5,
         },
     ):
         if training_strategy is None:
