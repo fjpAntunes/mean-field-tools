@@ -1,8 +1,8 @@
-"""Tests Ornstein-Uhlenbeck as forward process
+r"""Tests Ornstein-Uhlenbeck as forward process
 Equation:
 $$
 dX_t = -kX_t dt + dW_t,\quad X_0 = 0, \\
-dY_t = -2X_t dt + Z_t dW_t, \quad Y_T = X^2_T, \\
+dY_t = -2X_t dt + Z_t dW_t, Y_T = X^2_T, \\
 $$
 """
 
@@ -83,11 +83,13 @@ def test_analytical_forward_numerical_backward():
     )
 
     APPROXIMATOR_ARGS = {
-        "batch_size": 100,
-        "number_of_iterations": 500,
-        "number_of_epochs": 5,
-        "number_of_plots": 5,
-        "plotter": artist,
+        "training_strategy_args": {
+            "batch_size": 100,
+            "number_of_iterations": 500,
+            "number_of_batches": 5,
+            "number_of_plots": 5,
+            "plotter": artist,
+        },
     }
 
     forward_backward_sde.backward_solve(approximator_args=APPROXIMATOR_ARGS)

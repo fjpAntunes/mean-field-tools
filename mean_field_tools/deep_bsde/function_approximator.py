@@ -242,7 +242,7 @@ class FunctionApproximator(nn.Module):
         self.loss_recent_history = []
         return None
 
-    def single_training_step(
+    def single_gradient_descent_step(
         self, batch_sample: torch.Tensor, batch_target: torch.Tensor
     ):
         """Performs a single step of gradient descent.
@@ -265,28 +265,52 @@ class FunctionApproximator(nn.Module):
 
         return None
 
-    def minimize_over_sample(
-        self,
-        sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
-        target,  # shape :  (output_dimension, sample_size)
-        batch_size=512,
-        number_of_iterations=10_000,
-        number_of_epochs=100,
-        number_of_plots=10,
-        plotter: FunctionApproximatorArtist = None,
+    def _apply_training_strategy(
+        self, training_strategy: Callable, training_strategy_args: dict = {}
     ):
-        self.training_setup()
+        """Implements simplified strategy design pattern in order to enable different NN training methodologies.
 
-        for j in range(1, number_of_epochs + 1):
-            print(f"Epoch {j}")
-            batch_sample, batch_target = self._generate_batch(
-                batch_size, sample, target
-            )
+        Args:
+            training_strategy (Callable): Training method for the NN.
+            training_strategy_args (dict, optional): Arguments for the training. Defaults to {}.
+        """
 
-            for i in tqdm(range(number_of_iterations // number_of_epochs)):
-                self.single_training_step(batch_sample, batch_target)
+        training_strategy(self, **training_strategy_args)
 
-            if plotter and np.mod(j, number_of_epochs // number_of_plots) == 0:
+    def _batch_sgd_training(
+        self,
+        input: torch.Tensor,
+        target: torch.Tensor,
+        batch_size: int = 512,
+        number_of_batches: int = 100,
+        number_of_iterations: int = 10_000,
+        plotter: FunctionApproximatorArtist = None,
+        number_of_plots: int = 1,
+    ):
+        """Performs gradient descent on random batch of paths sampled with replacement.
+
+        Steps:
+        1. Samples a batch of paths,
+        2. performs gradient descent on the empirical loss function over the batch
+        3. Repeats 1-2 until `number_of_iterations` is reached.
+
+        Args:
+            input (torch.Tensor): Input dataset for the neural network
+            target (torch.Tensor): Target output dataset for the neural network
+            batch_size (int, optional):  Number of paths sampled with replacement from `input`. Defaults to 512.
+            number_of_batches (int, optional):  Defaults to 100.
+            number_of_iterations (int, optional): Total number of gradient descent steps taken by the algorithm. Defaults to 10_000.
+            plotter (FunctionApproximatorArtist, optional): Auxiliary plotting object. Defaults to None.
+            number_of_plots (int, optional): number of plots to display during training, at the end of the iterations over a batch. Defaults to 1.
+        """
+        for j in range(1, number_of_batches + 1):
+            print(f"Batch {j}")
+            batch_sample, batch_target = self._generate_batch(batch_size, input, target)
+
+            for i in tqdm(range(number_of_iterations // number_of_batches)):
+                self.single_gradient_descent_step(batch_sample, batch_target)
+
+            if plotter and np.mod(j, number_of_batches // number_of_plots) == 0:
                 plotter.plot_loss_history(j, self.loss_history)
                 plotter.plot_fit_against_analytical(self, batch_sample, j)
                 plotter.plot_paths(
@@ -298,6 +322,29 @@ class FunctionApproximator(nn.Module):
                 plotter.plot_single_path(
                     approximator=self, sample=batch_sample, iteration=j
                 )
+
+    def minimize_over_sample(
+        self,
+        sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
+        target,  # shape :  (output_dimension, sample_size)
+        training_strategy: Callable = None,
+        training_strategy_args: dict = {
+            "batch_size": 512,
+            "number_of_iterations": 10_000,
+            "number_of_batches": 100,
+            "number_of_plots": 10,
+            "plotter": None,
+        },
+    ):
+        if training_strategy is None:
+            training_strategy = self._batch_sgd_training
+
+        training_strategy_args["input"] = sample
+        training_strategy_args["target"] = target
+
+        self.training_setup()
+
+        training_strategy(**training_strategy_args)
 
         self.is_training = False
 
