@@ -1,4 +1,4 @@
-"""Tests quadratic with drift
+r"""Tests quadratic with drift
 Equation:
 $$
 dY_t =-2t\, dt Z_t\, dW_t, \quad Y_T = W^2_T, \\
@@ -47,11 +47,13 @@ def test_terminal_quadratic_with_deterministic_drift():
 
     bsde.solve(
         approximator_args={
-            "batch_size": 100,
-            "number_of_iterations": 500,
-            "number_of_epochs": 5,
-            "number_of_plots": 5,
-            "plotter": artist,
+            "training_strategy_args": {
+                "batch_size": 100,
+                "number_of_iterations": 500,
+                "number_of_batches": 5,
+                "number_of_plots": 5,
+                "plotter": artist,
+            },
         }
     )
 
