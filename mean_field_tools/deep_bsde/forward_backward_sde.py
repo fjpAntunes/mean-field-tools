@@ -211,13 +211,29 @@ class ForwardBackwardSDE:
     def _single_picard_step(self, approximator_args: dict = {}):
         """Performs a single step of the Picard operator for the backward SDE.
 
+        The steps performed are:
+        1. Calculate a new forward process $X^1_t$ using $X^0_t, Y^0_t$ as input, through Euler-Maruyama discretization, - not implemented
+        2. Calculate a new backward process $Y^1_t$ using $X^0_t, Y^0_t$ as input, calculating the conditional expectation by elicitability.
+
         Args:
             approximator_args (dict, optional): Arguments for the neural network training. Defaults to {}.
         """
-        self._add_forward_process_to_filtration()
         self.backward_sde.solve(approximator_args)
 
     def backward_solve(self, number_of_iterations: int, approximator_args: dict = {}):
+        """Solve the FBSDE system through Picard Iterations.
+
+
+        In this case, the Picard iteration works as follows:
+        1. Given an initial forward process $ X^0_t$, and an initial backward process $Y^0_t$:
+        2. Calculate a new forward process $X^1_t$ using $X^0_t, Y^0_t$ as input, through Euler-Maruyama discretization,
+        3. Calculate a new backward process $Y^1_t$ using $X^0_t, Y^0_t$ as input, calculating the conditional expectation by elicitability.
+        4. Go back to step 1. After a number of iterations, or if convergence is achieved, end the algorithm.
+
+        Args:
+            number_of_iterations (int): _description_
+            approximator_args (dict, optional): _description_. Defaults to {}.
+        """
         self._add_forward_process_to_filtration()
         if "backward_process" not in self.backward_sde.exogenous_process:
             self._single_picard_step(approximator_args)
