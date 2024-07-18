@@ -47,11 +47,13 @@ def test_terminal_quadratic_with_stochastic_drift():
 
     bsde.solve(
         approximator_args={
-            "batch_size": 100,
-            "number_of_iterations": 500,
-            "number_of_epochs": 5,
-            "number_of_plots": 5,
-            "plotter": artist,
+            "training_strategy_args": {
+                "batch_size": 100,
+                "number_of_iterations": 500,
+                "number_of_batches": 5,
+                "number_of_plots": 5,
+                "plotter": artist,
+            },
         }
     )
 
