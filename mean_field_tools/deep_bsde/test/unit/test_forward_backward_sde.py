@@ -74,6 +74,7 @@ def test_initialize():
 
 def test_backward_single_picard_step():
     forward_backward_sde = setup()
+    forward_backward_sde._add_forward_process_to_filtration()
     forward_backward_sde._single_picard_step(
         approximator_args={
             "training_strategy_args": {

@@ -91,7 +91,7 @@ def test_analytical_forward_numerical_backward():
             "plotter": artist,
         },
     }
-
+    forward_backward_sde._add_forward_process_to_filtration()
     forward_backward_sde._single_picard_step(approximator_args=APPROXIMATOR_ARGS)
 
     output = backward_sde.generate_paths()[0, :, :].tolist()
