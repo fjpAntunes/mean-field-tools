@@ -88,7 +88,7 @@ APPROXIMATOR_ARGS = {
     "plotter": artist,
 }
 
-forward_backward_sde.backward_solve(approximator_args=APPROXIMATOR_ARGS)
+forward_backward_sde._single_picard_step(approximator_args=APPROXIMATOR_ARGS)
 
 import pdb
 
