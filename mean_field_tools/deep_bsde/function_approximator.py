@@ -306,24 +306,31 @@ class FunctionApproximator(nn.Module):
             plotter (FunctionApproximatorArtist, optional): Auxiliary plotting object. Defaults to None.
             number_of_plots (int, optional): number of plots to display during training, at the end of the iterations over a batch. Defaults to 1.
         """
-        for j in range(1, number_of_batches + 1):
-            print(f"Batch {j}")
-            batch_sample, batch_target = self._generate_batch(batch_size, input, target)
+        for self.batch in range(1, number_of_batches + 1):
+            print(f"Batch {self.batch}")
+            self.batch_sample, self.batch_target = self._generate_batch(
+                batch_size, input, target
+            )
 
-            for i in tqdm(range(number_of_iterations // number_of_batches)):
-                self.single_gradient_descent_step(batch_sample, batch_target)
+            for self.iteration in tqdm(
+                range(number_of_iterations // number_of_batches)
+            ):
+                self.single_gradient_descent_step(self.batch_sample, self.batch_target)
 
-            if plotter and np.mod(j, number_of_batches // number_of_plots) == 0:
-                plotter.plot_loss_history(j, self.loss_history)
-                plotter.plot_fit_against_analytical(self, batch_sample, j)
+            if (
+                plotter
+                and np.mod(self.batch, number_of_batches // number_of_plots) == 0
+            ):
+                plotter.plot_loss_history(self.batch, self.loss_history)
+                plotter.plot_fit_against_analytical(self, self.batch_sample, self.batch)
                 plotter.plot_paths(
                     approximator=self,
-                    sample=batch_sample,
+                    sample=self.batch_sample,
                     number_of_paths=20,
-                    iteration=j,
+                    iteration=self.batch,
                 )
                 plotter.plot_single_path(
-                    approximator=self, sample=batch_sample, iteration=j
+                    approximator=self, sample=self.batch_sample, iteration=self.batch
                 )
 
     def minimize_over_sample(
