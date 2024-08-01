@@ -52,8 +52,6 @@ def test_picard_iterations_linear_on_y():
         functional_form=OU_FUNCTIONAL_FORM,
     )
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
     def LINEAR_BACKWARD_DRIFT(filtration: Filtration):
         X_t = filtration.forward_process
         Y_t = filtration.backward_process
@@ -70,7 +68,7 @@ def test_picard_iterations_linear_on_y():
         exogenous_process=["time_process", "forward_process", "backward_process"],
         drift=LINEAR_BACKWARD_DRIFT,
     )
-    backward_sde.initialize_approximator(nn_args={"device": device})
+    backward_sde.initialize_approximator()
 
     forward_backward_sde = ForwardBackwardSDE(
         filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde

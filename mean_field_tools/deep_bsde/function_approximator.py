@@ -4,7 +4,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Callable
+from typing import Callable, List
 
 AnalyticalSolution = Callable[
     [
@@ -18,8 +18,12 @@ AnalyticalSolution = Callable[
 
 class FunctionApproximatorArtist:
     def __init__(
-        self, save_figures=False, analytical_solution: AnalyticalSolution = None
+        self,
+        number_of_plots=1,
+        save_figures=False,
+        analytical_solution: AnalyticalSolution = None,
     ):
+        self.number_of_plots = number_of_plots
         self.save_figures = save_figures
         self.analytical_solution = analytical_solution
 
@@ -136,6 +140,39 @@ class FunctionApproximatorArtist:
         plt.close()
 
 
+class Callbacker:
+    def __init__(self, neural_net: nn.Module):
+        self.plotter = FunctionApproximatorArtist()
+        self.neural_net = neural_net
+
+    def end_of_batch(self):
+        if (
+            self.plotter
+            and np.mod(
+                self.neural_net.batch,
+                self.neural_net.number_of_batches // self.plotter.number_of_plots,
+            )
+            == 0
+        ):
+            self.plotter.plot_loss_history(
+                self.neural_net.batch, self.neural_net.loss_history
+            )
+            self.plotter.plot_fit_against_analytical(
+                self.neural_net, self.neural_net.batch_sample, self.neural_net.batch
+            )
+            self.plotter.plot_paths(
+                approximator=self.neural_net,
+                sample=self.neural_net.batch_sample,
+                number_of_paths=20,
+                iteration=self.neural_net.batch,
+            )
+            self.plotter.plot_single_path(
+                approximator=self.neural_net,
+                sample=self.neural_net.batch_sample,
+                iteration=self.neural_net.batch,
+            )
+
+
 class FunctionApproximator(nn.Module):
     def __init__(
         self,
@@ -149,6 +186,7 @@ class FunctionApproximator(nn.Module):
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
         device="cpu",
+        callbacker: Callbacker = None,
     ):
 
         super(FunctionApproximator, self).__init__()
@@ -176,6 +214,11 @@ class FunctionApproximator(nn.Module):
         self.activation = nn.SiLU()
 
         self.scoring = scoring
+        self._callbacker_setter(callbacker)
+
+    def _callbacker_setter(self, callbacker: Callbacker):
+        if callbacker is None:
+            self.callbacker = Callbacker(neural_net=self)
 
     def preprocess(self, input):
         if input.device.type != self.device:
@@ -287,8 +330,6 @@ class FunctionApproximator(nn.Module):
         batch_size: int = 512,
         number_of_batches: int = 100,
         number_of_iterations: int = 10_000,
-        plotter: FunctionApproximatorArtist = None,
-        number_of_plots: int = 1,
     ):
         """Performs gradient descent on random batch of paths sampled with replacement.
 
@@ -306,6 +347,7 @@ class FunctionApproximator(nn.Module):
             plotter (FunctionApproximatorArtist, optional): Auxiliary plotting object. Defaults to None.
             number_of_plots (int, optional): number of plots to display during training, at the end of the iterations over a batch. Defaults to 1.
         """
+        self.number_of_batches = number_of_batches
         for self.batch in range(1, number_of_batches + 1):
             print(f"Batch {self.batch}")
             self.batch_sample, self.batch_target = self._generate_batch(
@@ -317,21 +359,7 @@ class FunctionApproximator(nn.Module):
             ):
                 self.single_gradient_descent_step(self.batch_sample, self.batch_target)
 
-            if (
-                plotter
-                and np.mod(self.batch, number_of_batches // number_of_plots) == 0
-            ):
-                plotter.plot_loss_history(self.batch, self.loss_history)
-                plotter.plot_fit_against_analytical(self, self.batch_sample, self.batch)
-                plotter.plot_paths(
-                    approximator=self,
-                    sample=self.batch_sample,
-                    number_of_paths=20,
-                    iteration=self.batch,
-                )
-                plotter.plot_single_path(
-                    approximator=self, sample=self.batch_sample, iteration=self.batch
-                )
+            self.callbacker.end_of_batch()
 
     def minimize_over_sample(
         self,
@@ -342,7 +370,6 @@ class FunctionApproximator(nn.Module):
             "batch_size": 100,
             "number_of_iterations": 500,
             "number_of_batches": 5,
-            "number_of_plots": 5,
         },
     ):
         if training_strategy is None:
