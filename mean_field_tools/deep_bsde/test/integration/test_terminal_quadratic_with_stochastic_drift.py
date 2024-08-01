@@ -41,10 +41,6 @@ def test_terminal_quadratic_with_stochastic_drift():
 
     bsde.initialize_approximator()
 
-    artist = FunctionApproximatorArtist(
-        save_figures=False, analytical_solution=ANALYTICAL_SOLUTION
-    )
-
     bsde.solve(
         approximator_args={
             "training_strategy_args": {
