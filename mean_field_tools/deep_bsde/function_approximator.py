@@ -190,14 +190,19 @@ class FunctionApproximator(nn.Module):
             return output.to("cpu")
 
     def forward(self, x):
-        x = self.preprocess(x)
-        out = self.activation(self.input(x))
+        self.x = self.preprocess(x)
+        self.x.requires_grad = True
+        out = self.activation(self.input(self.x))
         for layer in self.hidden:
             out = self.activation(layer(out))
 
         out = self.output(out)
         out = self.postprocess(out, training_status=self.is_training)
         return out
+    
+    def grad(self,x):
+        y = self(x)
+        return torch.autograd.grad(y,x)
 
     def detached_call(self, x):
         return self.forward(x).detach()

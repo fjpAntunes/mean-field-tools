@@ -121,3 +121,15 @@ def test_single_training_step():
     output = {name: param.tolist() for name, param in approximator.named_parameters()}
 
     assert benchmark == output
+
+def test_gradient_with_respect_to_input():
+    """Tests simple point gradient.
+    The variable point_sample should represent a state input point 
+    """
+    approximator = setup()
+    point_sample = torch.Tensor([0, 0])
+    test = approximator.grad(point_sample)
+    test = test[0]
+
+    benchmark = [0.0019085101084783673, -0.0024658890906721354]
+    assert test.tolist() == benchmark
