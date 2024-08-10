@@ -191,7 +191,6 @@ class FunctionApproximator(nn.Module):
 
     def forward(self, x):
         self.x = self.preprocess(x)
-        self.x.requires_grad = True
         out = self.activation(self.input(self.x))
         for layer in self.hidden:
             out = self.activation(layer(out))
