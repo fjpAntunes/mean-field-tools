@@ -29,7 +29,7 @@ bsde.solve(
     }
 )
 
-approximate_solution = bsde.generate_paths()
+approximate_solution = bsde.generate_backward_process()
 
 
 def test_approximate_solution_shape():

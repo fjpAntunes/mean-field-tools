@@ -104,9 +104,10 @@ class BackwardSDE:
             **nn_args
         )
 
-    def generate_paths(self):
+    def generate_backward_process(self):
         input = self.set_approximator_input()
         return self.y_approximator.detached_call(input)
+    
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,
@@ -205,7 +206,7 @@ class ForwardBackwardSDE:
         self.filtration.forward_process = forward_process
 
     def _add_backward_process_to_filtration(self):
-        backward_process = self.backward_sde.generate_paths()
+        backward_process = self.backward_sde.generate_backward_process()
         self.filtration.backward_process = backward_process
 
     def _single_picard_step(self, approximator_args: dict = {}):
