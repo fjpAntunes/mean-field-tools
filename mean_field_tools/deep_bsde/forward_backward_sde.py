@@ -108,6 +108,17 @@ class BackwardSDE:
         input = self.set_approximator_input()
         return self.y_approximator.detached_call(input)
     
+    def generate_backward_volatility(self):
+        y = self.generate_backward_process()
+        w = self.filtration.brownian_process
+        drift,_ = self.set_drift_path()
+        drift = drift[:,:-1,:]
+        delta = lambda x : x[:,1:,:] - x[:,:-1,:]
+        
+        z = (delta(y) + drift*self.filtration.dt)/delta(w)
+        
+        return z
+
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,

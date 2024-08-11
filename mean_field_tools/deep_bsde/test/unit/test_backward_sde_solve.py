@@ -29,12 +29,34 @@ bsde.solve(
     }
 )
 
-approximate_solution = bsde.generate_backward_process()
 
 
-def test_approximate_solution_shape():
-    assert approximate_solution.shape == (
+
+def test_backward_process_shape():
+    backward_process = bsde.generate_backward_process()
+    assert backward_process.shape == (
         NUMBER_OF_PATHS,
         NUMBER_OF_TIMESTEPS,
         SPATIAL_DIMENSIONS,
     )
+
+def test_backward_volatility_shape():
+    backward_volatility = bsde.generate_backward_volatility()
+
+    assert backward_volatility.shape == (
+        NUMBER_OF_PATHS,
+        NUMBER_OF_TIMESTEPS-1,
+        SPATIAL_DIMENSIONS
+    )
+
+def test_backward_volatility_value():
+    backward_process = bsde.generate_backward_process()
+    backward_volatility = bsde.generate_backward_volatility()
+    drift = bsde.drift_path[0,0,0]
+    dt = bsde.filtration.dt
+    dw = bsde.filtration.brownian_increments[0,0,0]
+    
+    dy = backward_process[0,1,0] - backward_process[0,0,0]
+    
+    benchmark = (dy - drift*dt)/ dw
+    assert benchmark.tolist() == backward_volatility[0,0,0].tolist()
