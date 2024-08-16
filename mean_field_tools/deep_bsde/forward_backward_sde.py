@@ -109,15 +109,8 @@ class BackwardSDE:
         return self.y_approximator.detached_call(input)
     
     def generate_backward_volatility(self):
-        y = self.generate_backward_process()
-        w = self.filtration.brownian_process
-        drift,_ = self.set_drift_path()
-        drift = drift[:,:-1,:]
-        delta = lambda x : x[:,1:,:] - x[:,:-1,:]
-        
-        z = (delta(y) + drift*self.filtration.dt)/delta(w)
-        
-        return z
+        input = self.set_approximator_input()
+        pass
 
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:

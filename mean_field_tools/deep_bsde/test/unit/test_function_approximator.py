@@ -127,10 +127,23 @@ def test_gradient_with_respect_to_input():
     The variable point_sample should represent a state input point 
     """
     approximator = setup()
-    point_sample = torch.Tensor([0, 0])
+    approximator.forward = lambda x: torch.sum(x, axis = -1)
+    point_sample = torch.Tensor([[0, 0]])
     point_sample.requires_grad = True
     test = approximator.grad(point_sample)
     test = test[0]
 
-    benchmark = [0.0019085101084783673, -0.0024658890906721354]
+    benchmark = [1, 1]
     assert test.tolist() == benchmark
+
+def test_batch_gradient_with_respect_to_input():
+    """Tests batch point gradients.
+    """
+    approximator = setup()
+    approximator.forward = lambda x: torch.sum(x, axis = -1) # Override forward to a simple derivative function.
+    point_sample = torch.Tensor([[0.5,0.5],[0, 0]])
+    point_sample.requires_grad = True
+    test = approximator.grad(point_sample)
+    benchmark = [[1,1],[1,1]]
+    assert test.tolist() == benchmark
+    
