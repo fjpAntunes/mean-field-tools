@@ -78,7 +78,6 @@ def test_analytical_forward_numerical_backward():
         filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde
     )
 
-
     APPROXIMATOR_ARGS = {
         "training_strategy_args": {
             "batch_size": 100,

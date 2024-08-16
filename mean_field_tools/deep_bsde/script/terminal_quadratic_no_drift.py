@@ -35,12 +35,13 @@ artist = FunctionApproximatorArtist(
 
 bsde.solve(
     approximator_args={
-        "training_strategy_args":{
-        "batch_size": 100,
-        "number_of_iterations": 5000,
-        "number_of_batches": 50,
-        "number_of_plots": 5,
-        "plotter": artist,}
+        "training_strategy_args": {
+            "batch_size": 100,
+            "number_of_iterations": 5000,
+            "number_of_batches": 50,
+            "number_of_plots": 5,
+            "plotter": artist,
+        }
     }
 )
 

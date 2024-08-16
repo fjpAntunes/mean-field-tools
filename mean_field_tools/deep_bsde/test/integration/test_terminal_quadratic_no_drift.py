@@ -32,7 +32,6 @@ def test_terminal_quadratic_no_drift():
 
     bsde.initialize_approximator()
 
-
     bsde.solve(
         approximator_args={
             "training_strategy_args": {

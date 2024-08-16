@@ -41,7 +41,6 @@ def test_terminal_quadratic_with_stochastic_drift():
 
     bsde.initialize_approximator()
 
-
     bsde.solve(
         approximator_args={
             "training_strategy_args": {
