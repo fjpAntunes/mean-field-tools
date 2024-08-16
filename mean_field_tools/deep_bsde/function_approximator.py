@@ -217,7 +217,8 @@ class FunctionApproximator(nn.Module):
         """
         y = self(x).reshape(-1)
 
-        return torch.autograd.grad(y,x,torch.ones(x.shape[:-1]))[0]
+        aux_tensor = torch.ones(x.shape[:-1])
+        return torch.autograd.grad(y,x,aux_tensor)[0]
 
     def detached_call(self, x):
         return self.forward(x).detach()
