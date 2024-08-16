@@ -5,13 +5,13 @@ from typing import Callable, List
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
-DriftType = Callable[
+filtrationMeasurableFunction = Callable[
     [Filtration],
     torch.Tensor,  # Shape should be (num_paths, path_length, spatial_dim)
 ]
 
 
-def zero_drift(filtration: Filtration):
+def zero_function(filtration: Filtration):
     return filtration.time_process * 0
 
 
@@ -21,14 +21,20 @@ class ForwardSDE:
     def __init__(
         self,
         filtration: Filtration,
-        functional_form,
+        functional_form: filtrationMeasurableFunction,
+        volatility_functional_form: filtrationMeasurableFunction = zero_function,
     ):
         self.filtration = filtration
         self.functional_form = functional_form
+        self.volatility_functional_form = volatility_functional_form
 
     def generate_paths(self, filtration: Filtration):
         self.paths = self.functional_form(filtration)
         return self.paths
+
+    def get_volatility(self):
+        volatility = self.volatility_functional_form(self.filtration)
+        return volatility
 
 
 class BackwardSDE:
@@ -55,7 +61,7 @@ class BackwardSDE:
         terminal_condition_function: Callable[[Filtration], torch.Tensor],
         filtration: Filtration,
         exogenous_process=["time_process", "brownian_process"],
-        drift: DriftType = zero_drift,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
         r"""Initialization function of the class.
 
@@ -107,11 +113,16 @@ class BackwardSDE:
     def generate_backward_process(self):
         input = self.set_approximator_input()
         return self.y_approximator.detached_call(input)
-    
+
     def generate_backward_volatility(self):
         input = self.set_approximator_input()
-        pass
+        grad_y_wrt_x = self.y_approximator.grad(input)[:, :, 1:]
+        if "brownian_process" in self.exogenous_process:
+            return grad_y_wrt_x
 
+        if "forward_process" in self.exogenous_process:
+            volatility_of_x = self.filtration.forward_process.get_volatility()
+            return grad_y_wrt_x * volatility_of_x
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,

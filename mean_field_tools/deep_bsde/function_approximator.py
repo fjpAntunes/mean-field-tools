@@ -198,7 +198,7 @@ class FunctionApproximator(nn.Module):
         out = self.output(out)
         out = self.postprocess(out, training_status=self.is_training)
         return out
-    
+
     def grad(self, x: torch.Tensor) -> torch.Tensor:
         """Calculates approximate gradient for the approximate function
 
@@ -215,10 +215,12 @@ class FunctionApproximator(nn.Module):
         Returns:
             torch.Tensor: Gradients for each point of each path. Should be of shape (num_paths, path_length, input_dimensions);
         """
-        y = self(x).reshape(-1)
-
+        x.requires_grad = True
+        y = self(x)
+        if y.shape != (1,):
+            y = y.squeeze(-1)
         aux_tensor = torch.ones(x.shape[:-1])
-        return torch.autograd.grad(y,x,aux_tensor)[0]
+        return torch.autograd.grad(y, x, aux_tensor)[0]
 
     def detached_call(self, x):
         return self.forward(x).detach()
