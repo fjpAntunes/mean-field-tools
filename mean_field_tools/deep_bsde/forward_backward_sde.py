@@ -243,6 +243,10 @@ class ForwardBackwardSDE:
         """
         self.backward_sde.solve(approximator_args)
 
+    def _initialize_backward_process(self, backward_process, backward_volatility):
+        self.filtration.backward_process = backward_process
+        self.filtration.backward_volatility = backward_volatility
+
     def backward_solve(self, number_of_iterations: int, approximator_args: dict = {}):
         """Solve the FBSDE system through Picard Iterations.
 
@@ -263,7 +267,9 @@ class ForwardBackwardSDE:
             self._single_picard_step(approximator_args)
 
         if "backward_process" in self.backward_sde.exogenous_process:
-            self.filtration.backward_process = self.filtration.forward_process
+            self._initialize_backward_process(
+                self.filtration.forward_process, self.filtration.forward_volatility
+            )
             for _ in range(number_of_iterations):
                 self._single_picard_step(approximator_args)
                 self._add_backward_process_to_filtration()
