@@ -111,16 +111,10 @@ class BackwardSDE:
         )
 
     def generate_backward_process(self):
-        import pdb
-
-        pdb.set_trace()
         input = self.set_approximator_input()
         return self.y_approximator.detached_call(input)
 
     def generate_backward_volatility(self):
-        import pdb
-
-        pdb.set_trace()
         input = self.set_approximator_input()
         grad_y_wrt_x = self.y_approximator.grad(input)[:, :, 1:]
         if "brownian_process" in self.exogenous_process:
