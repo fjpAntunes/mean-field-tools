@@ -121,7 +121,7 @@ class BackwardSDE:
             return grad_y_wrt_x
 
         if "forward_process" in self.exogenous_process:
-            volatility_of_x = self.filtration.forward_volatility()
+            volatility_of_x = self.filtration.forward_volatility
             return grad_y_wrt_x * volatility_of_x
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
