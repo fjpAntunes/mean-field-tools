@@ -227,6 +227,10 @@ class ForwardBackwardSDE:
         backward_process = self.backward_sde.generate_backward_process()
         self.filtration.backward_process = backward_process
 
+    def _add_backward_volatility_to_filtration(self):
+        backward_volatility = self.backward_sde.generate_backward_volatility()
+        self.filtration.backward_volatility = backward_volatility
+
     def _single_picard_step(self, approximator_args: dict = {}):
         """Performs a single step of the Picard operator for the backward SDE.
 
@@ -263,3 +267,4 @@ class ForwardBackwardSDE:
             for _ in range(number_of_iterations):
                 self._single_picard_step(approximator_args)
                 self._add_backward_process_to_filtration()
+                self._add_backward_volatility_to_filtration()
