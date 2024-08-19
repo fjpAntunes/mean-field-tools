@@ -85,7 +85,7 @@ def test_backward_single_picard_step():
             },
         }
     )
-    paths = forward_backward_sde.backward_sde.generate_paths()[:5, -1, :]
+    paths = forward_backward_sde.backward_sde.generate_backward_process()[:5, -1, :]
     benchmark = [
         [0.4628603458404541],
         [0.14914759993553162],

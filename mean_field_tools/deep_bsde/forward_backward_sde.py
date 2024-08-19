@@ -5,13 +5,13 @@ from typing import Callable, List
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
-DriftType = Callable[
+filtrationMeasurableFunction = Callable[
     [Filtration],
     torch.Tensor,  # Shape should be (num_paths, path_length, spatial_dim)
 ]
 
 
-def zero_drift(filtration: Filtration):
+def zero_function(filtration: Filtration):
     return filtration.time_process * 0
 
 
@@ -21,14 +21,20 @@ class ForwardSDE:
     def __init__(
         self,
         filtration: Filtration,
-        functional_form,
+        functional_form: filtrationMeasurableFunction,
+        volatility_functional_form: filtrationMeasurableFunction = zero_function,
     ):
         self.filtration = filtration
         self.functional_form = functional_form
+        self.volatility_functional_form = volatility_functional_form
 
     def generate_paths(self, filtration: Filtration):
         self.paths = self.functional_form(filtration)
         return self.paths
+
+    def get_volatility(self):
+        volatility = self.volatility_functional_form(self.filtration)
+        return volatility
 
 
 class BackwardSDE:
@@ -55,7 +61,7 @@ class BackwardSDE:
         terminal_condition_function: Callable[[Filtration], torch.Tensor],
         filtration: Filtration,
         exogenous_process=["time_process", "brownian_process"],
-        drift: DriftType = zero_drift,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
         r"""Initialization function of the class.
 
@@ -104,9 +110,19 @@ class BackwardSDE:
             **nn_args
         )
 
-    def generate_paths(self):
+    def generate_backward_process(self):
         input = self.set_approximator_input()
         return self.y_approximator.detached_call(input)
+
+    def generate_backward_volatility(self):
+        input = self.set_approximator_input()
+        grad_y_wrt_x = self.y_approximator.grad(input)[:, :, 1:]
+        if "brownian_process" in self.exogenous_process:
+            return grad_y_wrt_x
+
+        if "forward_process" in self.exogenous_process:
+            volatility_of_x = self.filtration.forward_volatility
+            return grad_y_wrt_x * volatility_of_x
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,
@@ -204,9 +220,16 @@ class ForwardBackwardSDE:
         forward_process = self.forward_sde.functional_form(self.filtration)
         self.filtration.forward_process = forward_process
 
+    def _add_forward_volatility_to_filtration(self):
+        self.filtration.forward_volatility = self.forward_sde.get_volatility()
+
     def _add_backward_process_to_filtration(self):
-        backward_process = self.backward_sde.generate_paths()
+        backward_process = self.backward_sde.generate_backward_process()
         self.filtration.backward_process = backward_process
+
+    def _add_backward_volatility_to_filtration(self):
+        backward_volatility = self.backward_sde.generate_backward_volatility()
+        self.filtration.backward_volatility = backward_volatility
 
     def _single_picard_step(self, approximator_args: dict = {}):
         """Performs a single step of the Picard operator for the backward SDE.
@@ -219,6 +242,10 @@ class ForwardBackwardSDE:
             approximator_args (dict, optional): Arguments for the neural network training. Defaults to {}.
         """
         self.backward_sde.solve(approximator_args)
+
+    def _initialize_backward_process(self, backward_process, backward_volatility):
+        self.filtration.backward_process = backward_process
+        self.filtration.backward_volatility = backward_volatility
 
     def backward_solve(self, number_of_iterations: int, approximator_args: dict = {}):
         """Solve the FBSDE system through Picard Iterations.
@@ -235,11 +262,15 @@ class ForwardBackwardSDE:
             approximator_args (dict, optional): _description_. Defaults to {}.
         """
         self._add_forward_process_to_filtration()
+        self._add_forward_volatility_to_filtration()
         if "backward_process" not in self.backward_sde.exogenous_process:
             self._single_picard_step(approximator_args)
 
         if "backward_process" in self.backward_sde.exogenous_process:
-            self.filtration.backward_process = self.filtration.forward_process
+            self._initialize_backward_process(
+                self.filtration.forward_process, self.filtration.forward_volatility
+            )
             for _ in range(number_of_iterations):
                 self._single_picard_step(approximator_args)
                 self._add_backward_process_to_filtration()
+                self._add_backward_volatility_to_filtration()

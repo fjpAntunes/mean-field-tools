@@ -121,3 +121,31 @@ def test_single_training_step():
     output = {name: param.tolist() for name, param in approximator.named_parameters()}
 
     assert benchmark == output
+
+
+def test_gradient_with_respect_to_input():
+    """Tests simple point gradient.
+    The variable point_sample should represent a state input point
+    """
+    approximator = setup()
+    approximator.forward = lambda x: torch.sum(x, axis=-1)
+    point_sample = torch.Tensor([[0, 0]])
+    point_sample.requires_grad = True
+    test = approximator.grad(point_sample)
+    test = test[0]
+
+    benchmark = [1, 1]
+    assert test.tolist() == benchmark
+
+
+def test_batch_gradient_with_respect_to_input():
+    """Tests batch point gradients."""
+    approximator = setup()
+    approximator.forward = lambda x: torch.sum(
+        x, axis=-1
+    )  # Override forward to a simple derivative function.
+    point_sample = torch.Tensor([[0.5, 0.5], [0, 0]])
+    point_sample.requires_grad = True
+    test = approximator.grad(point_sample)
+    benchmark = [[1, 1], [1, 1]]
+    assert test.tolist() == benchmark

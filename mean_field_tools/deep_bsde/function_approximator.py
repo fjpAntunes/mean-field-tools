@@ -190,14 +190,37 @@ class FunctionApproximator(nn.Module):
             return output.to("cpu")
 
     def forward(self, x):
-        x = self.preprocess(x)
-        out = self.activation(self.input(x))
+        self.x = self.preprocess(x)
+        out = self.activation(self.input(self.x))
         for layer in self.hidden:
             out = self.activation(layer(out))
 
         out = self.output(out)
         out = self.postprocess(out, training_status=self.is_training)
         return out
+
+    def grad(self, x: torch.Tensor) -> torch.Tensor:
+        """Calculates approximate gradient for the approximate function
+
+        Uses `torch.autograd.grad` to calculate gradients for each point.
+        We consider that the last dimension of x defines a point, and other
+        dimensions are looped over.
+
+        `torch.autograd.grad` actually calculates the vector product between
+        the jacobian and an auxiliary vector. We define this auxiliary vector
+        as a vector of ones in order to return the original gradient.
+        Args:
+            x (torch.Tensor): input tensor. Should be of shape (num_paths, path_length, input_dimensions)
+
+        Returns:
+            torch.Tensor: Gradients for each point of each path. Should be of shape (num_paths, path_length, input_dimensions);
+        """
+        x.requires_grad = True
+        y = self(x)
+        if y.shape != (1,):
+            y = y.squeeze(-1)
+        aux_tensor = torch.ones(x.shape[:-1])
+        return torch.autograd.grad(y, x, aux_tensor)[0]
 
     def detached_call(self, x):
         return self.forward(x).detach()
