@@ -216,20 +216,11 @@ class FunctionApproximator(nn.Module):
             torch.Tensor: Gradients for each point of each path. Should be of shape (num_paths, path_length, input_dimensions);
         """
         x.requires_grad = True
-        try:
-            y = self(x)
-            if y.shape != (1,):
-                y = y.squeeze(-1)
-            aux_tensor = torch.ones(x.shape[:-1])
-            return torch.autograd.grad(y, x, aux_tensor)[0]
-        except torch.cuda.OutOfMemoryError as e:
-            print(e)
-            print("Dividing and conquering")
-            torch.cuda.empty_cache()
-            num_paths = x.shape[0]
-            lower_half_x = x[: num_paths // 2].detach()
-            upper_half_x = x[num_paths // 2 :].detach()
-            return torch.stack(self.grad(lower_half_x), self.grad(upper_half_x))
+        y = self(x)
+        if y.shape != (1,):
+            y = y.squeeze(-1)
+        aux_tensor = torch.ones(x.shape[:-1])
+        return torch.autograd.grad(y, x, aux_tensor)[0]
 
     def detached_call(self, x):
         return self.forward(x).detach()
