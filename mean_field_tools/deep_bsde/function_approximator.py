@@ -225,7 +225,6 @@ class FunctionApproximator(nn.Module):
         except torch.cuda.OutOfMemoryError as e:
             print(e)
             print("Dividing and conquering")
-            del y
             torch.cuda.empty_cache()
             num_paths = x.shape[0]
             lower_half_x = x[: num_paths // 2].detach()
