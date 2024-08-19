@@ -225,11 +225,12 @@ class FunctionApproximator(nn.Module):
         except torch.cuda.OutOfMemoryError as e:
             print(e)
             print("Dividing and conquering")
+            del y
             torch.cuda.empty_cache()
             num_paths = x.shape[0]
-            return torch.stack(
-                self.grad(x[: num_paths // 2]), self.grad(x[num_paths // 2 :])
-            )
+            lower_half_x = x[: num_paths // 2].detach()
+            upper_half_x = x[num_paths // 2 :].detach()
+            return torch.stack(self.grad(lower_half_x), self.grad(upper_half_x))
 
     def detached_call(self, x):
         return self.forward(x).detach()
