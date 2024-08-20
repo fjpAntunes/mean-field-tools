@@ -4,7 +4,10 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardSDE,
     ForwardBackwardSDE,
 )
-from mean_field_tools.deep_bsde.artist import FunctionApproximatorArtist
+from mean_field_tools.deep_bsde.artist import (
+    FunctionApproximatorArtist,
+    PicardIterationsArtist,
+)
 import torch
 import numpy as np
 
@@ -112,6 +115,29 @@ PICARD_ITERATION_ARGS = {
 
 "Solving"
 
+
+def analytical_Y(filtration: Filtration):
+    X_t = filtration.forward_process
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+    return torch.exp(alpha * (T - t)) * (beta * (T - t) + X_t)
+
+
+def analytical_Z(filtration: Filtration):
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+
+    return torch.exp(alpha * (T - t))
+
+
+iterations_artist = PicardIterationsArtist(
+    FILTRATION,
+    analytical_backward_solution=analytical_Y,
+    analytical_backward_volatility=analytical_Z,
+)
+
 forward_backward_sde.backward_solve(
-    number_of_iterations=5, approximator_args=PICARD_ITERATION_ARGS
+    number_of_iterations=5,
+    plotter=iterations_artist,
+    approximator_args=PICARD_ITERATION_ARGS,
 )

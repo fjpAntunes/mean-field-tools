@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from typing import Callable
 import torch
 import numpy as np
+from mean_field_tools.deep_bsde.filtration import Filtration
 
 AnalyticalSolution = Callable[
     [
@@ -13,11 +14,20 @@ AnalyticalSolution = Callable[
 ]
 
 
+def cast_to_np(tensor: torch.Tensor) -> np.ndarray:
+    """Casts tensor to numpy array for plotting."""
+    return tensor.detach().cpu().numpy()
+
+
 class FunctionApproximatorArtist:
     def __init__(
-        self, save_figures=False, analytical_solution: AnalyticalSolution = None
+        self,
+        filtration: Filtration = None,
+        save_figures=False,
+        analytical_solution: AnalyticalSolution = None,
     ):
         self.save_figures = save_figures
+        self.filtration = filtration
         self.analytical_solution = analytical_solution
 
     def _handle_fig_output(self, path: str) -> None:
@@ -26,10 +36,6 @@ class FunctionApproximatorArtist:
         else:
             plt.plot()
             plt.show()
-
-    def cast_to_np(self, tensor: torch.Tensor) -> np.ndarray:
-        """Casts tensor to numpy array for plotting."""
-        return tensor.detach().cpu().numpy()
 
     def plot_loss_history(self, number, loss_history):
         fig, axs = plt.subplots()
@@ -57,10 +63,10 @@ class FunctionApproximatorArtist:
             iteration (int): training iteration.
         """
         fig, axs = plt.subplots(2, 1, layout="constrained")
-        t = self.cast_to_np(sample[0, :, 0])
+        t = cast_to_np(sample[0, :, 0])
         for i in range(number_of_paths):
-            x = self.cast_to_np(sample[i, :, 1])
-            y = self.cast_to_np(approximator(sample[i, :, :]))
+            x = cast_to_np(sample[i, :, 1])
+            y = cast_to_np(approximator(sample[i, :, :]))
             axs[0].plot(t, x)
             axs[1].plot(t, y)
 
@@ -89,10 +95,10 @@ class FunctionApproximatorArtist:
             iteration (int): training iteration.
         """
         fig, axs = plt.subplots(2, 1, layout="constrained")
-        t = self.cast_to_np(sample[0, :, 0])
-        T = self.cast_to_np(sample[0, -1, 0])
-        x = self.cast_to_np(sample[0, :, 1])
-        y_hat = self.cast_to_np(approximator(sample[0, :, :]))
+        t = cast_to_np(sample[0, :, 0])
+        T = cast_to_np(sample[0, -1, 0])
+        x = cast_to_np(sample[0, :, 1])
+        y_hat = cast_to_np(approximator(sample[0, :, :]))
         axs[0].plot(t, x, label="Forward Process")
         axs[1].plot(t, y_hat, color="b", label="Backward Process - Approximation")
         if self.analytical_solution:
@@ -111,12 +117,12 @@ class FunctionApproximatorArtist:
         _, time_length, _ = sample.shape
         for i, time_index in enumerate([0, time_length // 2, time_length - 1]):
             x = sample[:, time_index, 1]
-            T = self.cast_to_np(sample[0, -1, 0])
+            T = cast_to_np(sample[0, -1, 0])
             t = T * (time_index / time_length)
             y_hat = approximator(sample)[:, time_index, 0]
 
-            x = self.cast_to_np(x.reshape(-1))
-            y_hat = self.cast_to_np(y_hat.reshape(-1))
+            x = cast_to_np(x.reshape(-1))
+            y_hat = cast_to_np(y_hat.reshape(-1))
 
             # axs[i].set_ylim(0, 2)
             # axs[i].set_xlim(-1.5, 1.5)
@@ -144,3 +150,81 @@ class FunctionApproximatorArtist:
         self.plot_single_path(
             approximator=approximator, sample=sample, iteration=iteration
         )
+
+
+class PicardIterationsArtist:
+    def __init__(
+        self,
+        filtration: Filtration,
+        analytical_backward_solution: Callable[[Filtration], torch.Tensor] = None,
+        analytical_backward_volatility: Callable[[Filtration], torch.Tensor] = None,
+    ):
+        self.filtration = filtration
+
+        self.analytical_backward_solution = analytical_backward_solution
+        self.analytical_backward_volatility = analytical_backward_volatility
+
+    def violin_plot(self, ax, time, errors, quantile_value):
+        boundary = np.quantile(
+            errors, [0.5 - quantile_value / 2, 0.5 + quantile_value / 2], axis=0
+        ).T
+        ax.fill_between(
+            time,
+            boundary[:, 0],
+            boundary[:, 1],
+            color="r",
+            alpha=1 - quantile_value,
+            label=f"{quantile_value:.0%} of values",
+        )
+
+    def quantiles_along_time(self, ax, time, errors, quantile_value):
+        ax.fill_between(
+            time,
+            np.quantile(errors, quantile_value, axis=0).T,
+            color="r",
+            alpha=1 - quantile_value,
+            label=f"{quantile_value:.0%} of values",
+        )
+
+    def plot_error_along_time(self):
+        _, axs = plt.subplots(4, 1, figsize=(12, 16))
+
+        y = self.analytical_backward_solution(self.filtration)
+        y_hat = self.filtration.backward_process
+        error_y = y_hat - y
+        error_y = cast_to_np(error_y)[:, :, 0]
+        quadratic_error_y = error_y**2
+
+        z = self.analytical_backward_volatility(self.filtration)
+        z_hat = self.filtration.backward_volatility
+        error_z = z_hat - z
+        error_z = cast_to_np(error_z)[:, :, 0]
+        quadratic_error_z = error_z**2
+
+        t = cast_to_np(self.filtration.time_domain)
+
+        quantile_values = [0.5, 0.9, 0.95]
+        for value in quantile_values:
+
+            # Violin plot
+            self.violin_plot(axs[0], t, error_y, value)
+            self.violin_plot(axs[2], t, error_z, value)
+
+            # squared errors along time
+            self.quantiles_along_time(axs[1], t, quadratic_error_y, value)
+            self.quantiles_along_time(axs[3], t, quadratic_error_z, value)
+
+        for i in range(4):
+            axs[i].legend()
+            axs[i].grid(True)
+        axs[0].set_title(f"Iteration {self.iteration + 1}")
+        axs[0].set_ylabel(r"$(\hat Y - Y)$")
+        axs[1].set_ylabel(r"$(\hat Y - Y)^2$")
+        axs[2].set_ylabel(r"$(\hat Z - Z)$")
+        axs[3].set_ylabel(r"$(\hat Z - Z)^2$")
+        axs[3].set_xlabel("Time")
+        plt.savefig(f"./.figures/error_quantile_plot_{self.iteration}.png")
+
+    def end_of_iteration_callback(self, iteration):
+        self.iteration = iteration
+        self.plot_error_along_time()

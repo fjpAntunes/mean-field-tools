@@ -1,6 +1,7 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
 from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
 from typing import Callable, List
 
 # Maybe create a path class with time and value - (t,X_t) in general
@@ -246,7 +247,12 @@ class ForwardBackwardSDE:
         self.filtration.backward_process = backward_process
         self.filtration.backward_volatility = backward_volatility
 
-    def backward_solve(self, number_of_iterations: int, approximator_args: dict = {}):
+    def backward_solve(
+        self,
+        number_of_iterations: int,
+        plotter: PicardIterationsArtist = None,
+        approximator_args: dict = {},
+    ):
         """Solve the FBSDE system through Picard Iterations.
 
 
@@ -265,7 +271,9 @@ class ForwardBackwardSDE:
         self._initialize_backward_process(
             self.filtration.forward_process, self.filtration.forward_volatility
         )
-        for _ in range(number_of_iterations):
+        for i in range(number_of_iterations):
             self._single_picard_step(approximator_args)
             self._add_backward_process_to_filtration()
             self._add_backward_volatility_to_filtration()
+            if plotter is not None:
+                plotter.end_of_iteration_callback(i)
