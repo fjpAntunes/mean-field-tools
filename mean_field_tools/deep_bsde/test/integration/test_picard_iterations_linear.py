@@ -16,7 +16,6 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardBackwardSDE,
 )
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
-from mean_field_tools.deep_bsde.utils import tensors_are_close
 import torch
 import numpy as np
 
@@ -72,10 +71,9 @@ def test_picard_iterations_linear_on_y():
     beta = 1
 
     def LINEAR_BACKWARD_DRIFT(filtration: Filtration):
-        X_t = filtration.forward_process
         Y_t = filtration.backward_process
         Z_t = filtration.backward_volatility
-        return alpha * Y_t + beta * Z_t  # + 2 * X_t
+        return alpha * Y_t + beta * Z_t
 
     def LINEAR_TERMINAL_CONDITION(filtration: Filtration):
         X_T = filtration.forward_process[:, -1, :]
