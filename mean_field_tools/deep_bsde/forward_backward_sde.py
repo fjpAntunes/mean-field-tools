@@ -263,14 +263,10 @@ class ForwardBackwardSDE:
         """
         self._add_forward_process_to_filtration()
         self._add_forward_volatility_to_filtration()
-        if "backward_process" not in self.backward_sde.exogenous_process:
+        self._initialize_backward_process(
+            self.filtration.forward_process, self.filtration.forward_volatility
+        )
+        for _ in range(number_of_iterations):
             self._single_picard_step(approximator_args)
-
-        if "backward_process" in self.backward_sde.exogenous_process:
-            self._initialize_backward_process(
-                self.filtration.forward_process, self.filtration.forward_volatility
-            )
-            for _ in range(number_of_iterations):
-                self._single_picard_step(approximator_args)
-                self._add_backward_process_to_filtration()
-                self._add_backward_volatility_to_filtration()
+            self._add_backward_process_to_filtration()
+            self._add_backward_volatility_to_filtration()

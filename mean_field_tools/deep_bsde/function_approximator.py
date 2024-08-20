@@ -220,7 +220,8 @@ class FunctionApproximator(nn.Module):
         if y.shape != (1,):
             y = y.squeeze(-1)
         aux_tensor = torch.ones(x.shape[:-1])
-        return torch.autograd.grad(y, x, aux_tensor)[0]
+        gradient = torch.autograd.grad(y, x, aux_tensor)[0]
+        return gradient
 
     def detached_call(self, x):
         return self.forward(x).detach()
