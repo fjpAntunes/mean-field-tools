@@ -330,7 +330,6 @@ class FunctionApproximator(nn.Module):
             number_of_plots (int, optional): number of plots to display during training, at the end of the iterations over a batch. Defaults to 1.
         """
         for j in tqdm(range(1, number_of_batches + 1)):
-            print(f"Batch {j}")
             batch_sample, batch_target = self._generate_batch(batch_size, input, target)
 
             for i in range(number_of_iterations // number_of_batches):
