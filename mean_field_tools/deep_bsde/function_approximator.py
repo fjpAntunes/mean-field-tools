@@ -220,7 +220,8 @@ class FunctionApproximator(nn.Module):
         if y.shape != (1,):
             y = y.squeeze(-1)
         aux_tensor = torch.ones(x.shape[:-1])
-        return torch.autograd.grad(y, x, aux_tensor)[0]
+        gradient = torch.autograd.grad(y, x, aux_tensor)[0]
+        return gradient
 
     def detached_call(self, x):
         return self.forward(x).detach()
@@ -329,11 +330,10 @@ class FunctionApproximator(nn.Module):
             plotter (FunctionApproximatorArtist, optional): Auxiliary plotting object. Defaults to None.
             number_of_plots (int, optional): number of plots to display during training, at the end of the iterations over a batch. Defaults to 1.
         """
-        for j in range(1, number_of_batches + 1):
-            print(f"Batch {j}")
+        for j in tqdm(range(1, number_of_batches + 1)):
             batch_sample, batch_target = self._generate_batch(batch_size, input, target)
 
-            for i in tqdm(range(number_of_iterations // number_of_batches)):
+            for i in range(number_of_iterations // number_of_batches):
                 self.single_gradient_descent_step(batch_sample, batch_target)
 
             if plotter and np.mod(j, number_of_batches // number_of_plots) == 0:

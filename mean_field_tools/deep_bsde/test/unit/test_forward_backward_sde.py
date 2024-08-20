@@ -114,7 +114,6 @@ def test_backward_picard_iteration_convergence():
         ]
         * 0,
         filtration=FILTRATION,
-        exogenous_process=["time_process", "backward_process"],
         drift=lambda filtration: filtration.backward_process,
     )
     backward_sde.initialize_approximator()
