@@ -83,7 +83,12 @@ backward_sde = BackwardSDE(
     exogenous_process=["time_process", "forward_process"],
     drift=LINEAR_BACKWARD_DRIFT,
 )
-backward_sde.initialize_approximator(nn_args={"device": device})
+backward_sde.initialize_approximator(
+    nn_args={
+        "device": device,
+        "optimizer": torch.optim.Adam,
+    }
+)
 
 "FBSDE definition"
 
