@@ -58,7 +58,7 @@ forward_sde = ForwardSDE(
 "Backward SDE definition"
 
 alpha = 1
-beta = 1
+beta = 0
 
 
 def LINEAR_BACKWARD_DRIFT(filtration: Filtration):

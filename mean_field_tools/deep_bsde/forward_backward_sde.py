@@ -69,7 +69,7 @@ class BackwardSDE:
             terminal_condition_function (Callable[[Filtration], torch.Tensor]): Terminal condition $\xi$ for the BSDE. Should be a function of the filtration.
             filtration (Filtration): Filtration object that holds the state of the processes in a time structured manner.
             exogenous_process (list, optional): Processes on which the BSDE depends.
-              possible processes are "time_process", "brownian_process", "forward_process", "backward_process".
+              possible processes are "time_process", "brownian_process", "forward_process".
               Defaults to ["time_process", "brownian_process"].
             drift (DriftType, optional): Drift function $f$ for the BSDE. Note the sign convention. Defaults to zero_drift.
         """
@@ -84,10 +84,9 @@ class BackwardSDE:
                 "time_process",
                 "brownian_process",
                 "forward_process",
-                "backward_process",
             ]:
                 raise ValueError(
-                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process", "backward_process"'
+                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process"'
                 )
 
         self.exogenous_process = exogenous_process_list
