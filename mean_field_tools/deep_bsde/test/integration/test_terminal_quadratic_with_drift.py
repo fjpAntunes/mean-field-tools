@@ -8,7 +8,6 @@ Where $W_t$ is the standard brownian motion.
 """
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
 
 

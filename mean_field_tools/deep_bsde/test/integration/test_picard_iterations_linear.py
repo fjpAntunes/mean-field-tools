@@ -15,7 +15,6 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardSDE,
     ForwardBackwardSDE,
 )
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
 import numpy as np
 

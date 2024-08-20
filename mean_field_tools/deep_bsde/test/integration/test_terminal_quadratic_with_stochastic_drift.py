@@ -9,7 +9,6 @@ we have $f(t,B_t) = B_t$.
 """
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
 
 
