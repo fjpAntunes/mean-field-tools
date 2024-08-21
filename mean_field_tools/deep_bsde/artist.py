@@ -186,19 +186,24 @@ class PicardIterationsArtist:
             label=f"{quantile_value:.0%} of values",
         )
 
-    def plot_error_along_time(self):
-        _, axs = plt.subplots(4, 1, figsize=(12, 16))
-
+    def calculate_errors(self):
         y = self.analytical_backward_solution(self.filtration)
         y_hat = self.filtration.backward_process
         error_y = y_hat - y
         error_y = cast_to_np(error_y)[:, :, 0]
-        quadratic_error_y = error_y**2
 
         z = self.analytical_backward_volatility(self.filtration)
         z_hat = self.filtration.backward_volatility
         error_z = z_hat - z
         error_z = cast_to_np(error_z)[:, :, 0]
+
+        return error_y, error_z
+
+    def plot_error_along_time(self):
+        _, axs = plt.subplots(4, 1, figsize=(12, 16))
+
+        error_y, error_z = self.calculate_errors()
+        quadratic_error_y = error_y**2
         quadratic_error_z = error_z**2
 
         t = cast_to_np(self.filtration.time_domain)
@@ -217,14 +222,32 @@ class PicardIterationsArtist:
         for i in range(4):
             axs[i].legend()
             axs[i].grid(True)
-        axs[0].set_title(f"Iteration {self.iteration + 1}")
+        axs[0].set_title(
+            f"Quantile of errors along time - Iteration {self.iteration + 1}"
+        )
         axs[0].set_ylabel(r"$(\hat Y - Y)$")
         axs[1].set_ylabel(r"$(\hat Y - Y)^2$")
         axs[2].set_ylabel(r"$(\hat Z - Z)$")
         axs[3].set_ylabel(r"$(\hat Z - Z)^2$")
         axs[3].set_xlabel("Time")
-        plt.savefig(f"./.figures/error_quantile_plot_{self.iteration}.png")
+        plt.savefig(f"./.figures/error_quantiles_plot_{self.iteration}.png")
+        plt.close()
+
+    def plot_error_histogram(self):
+        _, axs = plt.subplots(2, 1, figsize=(4, 8))
+
+        error_y, error_z = self.calculate_errors()
+        n_bins = 50
+        axs[0].hist(error_y.reshape(-1), bins=n_bins, density=True)
+        axs[1].hist(error_z.reshape(-1), bins=n_bins, density=True)
+
+        for i in range(2):
+            axs[i].grid(True)
+            axs[i].set_xlim(-1, 1)
+        plt.savefig(f"./.figures/error_histogram_{self.iteration}.png")
+        plt.close()
 
     def end_of_iteration_callback(self, iteration):
         self.iteration = iteration
         self.plot_error_along_time()
+        self.plot_error_histogram()
