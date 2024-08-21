@@ -2,6 +2,7 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
     NumericalForwardSDE,
+    AnalyticForwardSDE,
     ForwardBackwardSDE,
 )
 from mean_field_tools.deep_bsde.artist import (
@@ -34,6 +35,22 @@ TAU = 1
 SIGMA = 1
 
 
+def analytical_X(filtration: Filtration):
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+
+    first_term = -TAU * t / (1 + Q * T)
+    dummy_time = filtration.time_process
+    integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
+    initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))
+
+    dB_u = filtration.brownian_increments
+    integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
+    second_term = SIGMA * (1 + Q * (T - t)) * integral_term
+
+    return first_term + second_term
+
+
 def ZERO_FUNCTION(filtration: Filtration):
     zero = torch.zeros_like(filtration.time_process)
 
@@ -51,11 +68,10 @@ def VOLATILITY(filtration: Filtration):
     return SIGMA * one
 
 
-forward_sde = NumericalForwardSDE(
+forward_sde = AnalyticForwardSDE(
     filtration=FILTRATION,
-    initial_value=ZERO_FUNCTION,
-    drift=DRIFT,
-    volatility=VOLATILITY,
+    functional_form=analytical_X,
+    volatility_functional_form=VOLATILITY,
 )
 
 "Backward SDE definition"
@@ -123,22 +139,6 @@ def analytical_Z(filtration: Filtration):
     T = t[:, -1].unsqueeze(-1)
 
     return (Q / (1 + Q * (T - t))) * SIGMA
-
-
-def analytical_X(filtration: Filtration):
-    t = filtration.time_process
-    T = t[:, -1].unsqueeze(-1)
-
-    first_term = -TAU * T / (1 + Q * T)
-    dummy_time = filtration.time_process
-    integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
-    initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))
-
-    dB_u = filtration.brownian_increments
-    integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
-    second_term = SIGMA * (1 + Q * (T - t)) * integral_term
-
-    return first_term + second_term
 
 
 iterations_artist = PicardIterationsArtist(
