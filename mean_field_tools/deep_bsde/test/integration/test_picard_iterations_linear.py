@@ -12,7 +12,7 @@ $$ Y_T = X_T $$
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
-    ForwardSDE,
+    AnalyticForwardSDE,
     ForwardBackwardSDE,
 )
 import torch
@@ -58,7 +58,7 @@ def test_picard_iterations_linear_on_y():
         one = torch.ones_like(filtration.time_process)
         return VOL * one
 
-    forward_sde = ForwardSDE(
+    forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
         volatility_functional_form=OU_VOLATILITY,

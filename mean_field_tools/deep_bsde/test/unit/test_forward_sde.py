@@ -1,4 +1,8 @@
-from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, ForwardSDE
+from mean_field_tools.deep_bsde.forward_backward_sde import (
+    Filtration,
+    AnalyticForwardSDE,
+    NumericalForwardSDE,
+)
 from mean_field_tools.deep_bsde.utils import tensors_are_close, L_inf_norm
 import torch
 
@@ -26,7 +30,7 @@ def OU_FUNCTIONAL_FORM(filtration):
     return path
 
 
-ornstein_uhlenbeck = ForwardSDE(
+ornstein_uhlenbeck = AnalyticForwardSDE(
     filtration=FILTRATION, functional_form=OU_FUNCTIONAL_FORM
 )
 
@@ -58,7 +62,7 @@ def test_ou_path():
         seed=0,
     )
 
-    ornstein_uhlenbeck = ForwardSDE(
+    ornstein_uhlenbeck = AnalyticForwardSDE(
         filtration=filtration, functional_form=OU_FUNCTIONAL_FORM
     )
 
@@ -68,3 +72,66 @@ def test_ou_path():
     )
 
     assert tensors_are_close(ornstein_uhlenbeck.paths, benchmark)
+
+
+def ZERO_INITIAL_VALUE(filtration: Filtration):
+    t = filtration.time_process
+    zeros = torch.zero_like(t[:, 0, :])
+
+    return zeros
+
+
+def OU_DRIFT(filtration: Filtration):
+    X_t = filtration.forward_process
+
+    return -K * X_t
+
+
+def OU_VOL(filtration: Filtration):
+    t = filtration.time_process
+
+    return torch.ones_like(t)
+
+
+def test_calculate_riemman_integral():
+    filtration = Filtration(
+        spatial_dimensions=1,
+        time_domain=torch.linspace(0, 1, 101),
+        number_of_paths=1,
+        seed=0,
+    )
+    filtration.forward_process = torch.exp(filtration.time_process)
+
+    forward_sde = NumericalForwardSDE(
+        filtration=filtration,
+        initial_value=ZERO_INITIAL_VALUE,
+        drift=OU_DRIFT,
+        volatility=OU_VOL,
+    )
+
+    riemman_integral = forward_sde.calculate_riemman_integral()
+
+    deviation = filtration.forward_process + riemman_integral - 1
+    assert torch.mean(deviation**2) < 1e-3
+
+
+def test_calculate_ito_integral():
+    filtration = Filtration(
+        spatial_dimensions=1,
+        time_domain=torch.linspace(0, 1, 101),
+        number_of_paths=100,
+        seed=0,
+    )
+
+    forward_sde = NumericalForwardSDE(
+        filtration=filtration,
+        initial_value=ZERO_INITIAL_VALUE,
+        drift=OU_DRIFT,
+        volatility=lambda f: f.time_process,
+    )
+
+    ito_integral = forward_sde.calculate_ito_integral()
+
+    deviation = torch.mean(ito_integral**2 - filtration.time_process**2, axis=0)
+
+    assert torch.mean(deviation**2) < 0.2

@@ -3,7 +3,7 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
-    ForwardSDE,
+    AnalyticForwardSDE,
     ForwardBackwardSDE,
 )
 from mean_field_tools.deep_bsde.artist import FunctionApproximatorArtist
@@ -58,7 +58,7 @@ FILTRATION = Filtration(
     seed=0,
 )
 
-forward_sde = ForwardSDE(
+forward_sde = AnalyticForwardSDE(
     filtration=FILTRATION,
     functional_form=OU_FUNCTIONAL_FORM,
 )

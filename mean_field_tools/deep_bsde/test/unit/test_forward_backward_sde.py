@@ -1,6 +1,6 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardBackwardSDE,
-    ForwardSDE,
+    AnalyticForwardSDE,
     BackwardSDE,
 )
 
@@ -49,7 +49,7 @@ def setup():
         spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
     )
 
-    forward_sde = ForwardSDE(
+    forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
     )
@@ -103,7 +103,7 @@ def test_backward_picard_iteration_convergence():
         spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
     )
 
-    forward_sde = ForwardSDE(
+    forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
     )
