@@ -247,7 +247,32 @@ class PicardIterationsArtist:
         plt.savefig(f"./.figures/error_histogram_{self.iteration}.png")
         plt.close()
 
-    def end_of_iteration_callback(self, iteration):
+    def plot_picard_operator_error(self):
+        _, axs = plt.subplots(1, 1, figsize=(12, 4))
+
+        y = self.filtration.backward_process
+        picard_operator = self.fbsde.backward_sde.calculate_picard_operator()
+        quadratic_error = cast_to_np((picard_operator - y) ** 2)[:, :, 0]
+
+        t = cast_to_np(self.filtration.time_domain)
+        quantile_values = [0.5, 0.9, 0.95]
+        for value in quantile_values:
+            self.quantiles_along_time(axs, t, quadratic_error, value)
+
+        axs.legend()
+        axs.grid(True)
+        axs.set_title(
+            f"Quantile of errors against Picard operator value - Iteration {self.iteration + 1}"
+        )
+
+        axs.set_xlabel("Time")
+        axs.set_ylabel(r"$(\hat Y_t - P(\hat Y)_t)^2$")
+        plt.savefig(f"./.figures/picard_operator_error_{self.iteration}.png")
+        plt.close()
+
+    def end_of_iteration_callback(self, fbsde, iteration):
         self.iteration = iteration
+        self.fbsde = fbsde
         self.plot_error_along_time()
         self.plot_error_histogram()
+        self.plot_picard_operator_error()

@@ -155,3 +155,36 @@ def test_backward_volatility_value():
         [1.6500576734542847],
     ]
     assert benchmark == backward_volatility[0, :, :].tolist()
+
+
+def test_calculate_backward_volatility_integral_shape():
+    volatility_integral = bsde.calculate_volatility_integral()
+
+    assert volatility_integral.shape == (
+        NUMBER_OF_PATHS,
+        NUMBER_OF_TIMESTEPS,
+        SPATIAL_DIMENSIONS,
+    )
+
+
+def test_calculate_backward_volatility_integral_value():
+    volatility_integral = bsde.calculate_volatility_integral()
+
+    backward_volatility = bsde.generate_backward_volatility()
+
+    dt = filtration.dt
+    quadratic_variation = torch.sum(backward_volatility * dt, dim=1).unsqueeze(
+        -1
+    ) - torch.cumsum(backward_volatility * dt, dim=1)
+    ito_isometry_deviation = torch.mean(volatility_integral, dim=0) - torch.mean(
+        quadratic_variation, dim=0
+    )
+    assert torch.norm(ito_isometry_deviation) < 0.7
+
+
+def test_calculate_picard_operator():
+    picard_operator = bsde.calculate_picard_operator()
+    y = bsde.generate_backward_process()
+    deviations = picard_operator - y
+
+    assert torch.mean(deviations**2) < 0.4

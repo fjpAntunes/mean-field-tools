@@ -187,6 +187,24 @@ class BackwardSDE:
         out = torch.cat(processes, dim=2)
         return out
 
+    def calculate_volatility_integral(self) -> torch.Tensor:
+        volatility = self.generate_backward_volatility()[:, :-1, :]
+        increments = volatility * self.filtration.brownian_increments
+        total = torch.sum(increments, dim=1).unsqueeze(1)
+        self.volatility_integral = total - torch.cumsum(increments, dim=1)
+        terminal = torch.zeros_like(self.volatility_integral[:, -1:, :])
+
+        self.volatility_integral = torch.cat(
+            [self.volatility_integral, terminal], dim=1
+        )
+        return self.volatility_integral
+
+    def calculate_picard_operator(self) -> torch.Tensor:
+        terminal_condition = self.set_terminal_condition().unsqueeze(1)
+        _, drift_integral = self.set_drift_path()
+        volatility_integral = self.calculate_volatility_integral()
+        return terminal_condition + drift_integral - volatility_integral
+
     def solve(self, approximator_args: dict = None):
         """Performs the minimization step in order to calculate the conditional expectation through the elicitability method.
 
@@ -276,4 +294,4 @@ class ForwardBackwardSDE:
             self._add_backward_process_to_filtration()
             self._add_backward_volatility_to_filtration()
             if plotter is not None:
-                plotter.end_of_iteration_callback(i)
+                plotter.end_of_iteration_callback(fbsde=self, iteration=i)
