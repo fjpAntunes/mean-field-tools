@@ -247,7 +247,14 @@ class PicardIterationsArtist:
         plt.savefig(f"./.figures/error_histogram_{self.iteration}.png")
         plt.close()
 
-    def end_of_iteration_callback(self, iteration):
+    def plot_picard_operator_error(self):
+        _, axs = plt.subplots(1, 1, figsize=(12, 4))
+
+        y = self.filtration.backward_process
+
+    def end_of_iteration_callback(self, fbsde, iteration):
         self.iteration = iteration
+        self.fbsde = fbsde
         self.plot_error_along_time()
         self.plot_error_histogram()
+        self.plot_picard_operator_error()
