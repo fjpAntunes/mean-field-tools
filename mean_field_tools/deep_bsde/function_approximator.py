@@ -158,7 +158,7 @@ class FunctionApproximator(nn.Module):
         empirical_loss.backward()
         self.optimizer.step()
         self.scheduler.step()
-        self._append_loss_moving_average(empirical_loss.item(), window_size=100)
+        self._append_loss_moving_average(empirical_loss.item(), window_size=1)
 
         return None
 
