@@ -142,7 +142,7 @@ iterations_artist = PicardIterationsArtist(
 )
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=5,
+    number_of_iterations=10,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
