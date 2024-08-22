@@ -126,6 +126,4 @@ def test_backward_picard_iteration_convergence():
 
     output = forward_backward_sde.filtration.backward_process[0, :, 0]
 
-    benchmark = torch.zeros_like(output)
-
-    assert tensors_are_close(output, benchmark, tolerance=1e-1, norm=L_inf_norm)
+    assert torch.mean(output**2) + output.var() < 5 * 1e-3

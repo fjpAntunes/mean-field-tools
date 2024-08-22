@@ -34,7 +34,7 @@ ornstein_uhlenbeck = AnalyticForwardSDE(
     filtration=FILTRATION, functional_form=OU_FUNCTIONAL_FORM
 )
 
-ornstein_uhlenbeck.generate_paths(FILTRATION)
+ornstein_uhlenbeck.generate_paths()
 
 
 def test_path_mean():
@@ -66,7 +66,7 @@ def test_ou_path():
         filtration=filtration, functional_form=OU_FUNCTIONAL_FORM
     )
 
-    ornstein_uhlenbeck.generate_paths(filtration)
+    ornstein_uhlenbeck.generate_paths()
     benchmark = torch.Tensor(
         [[[0.0], [0.8896945714950562], [0.46808281540870667], [-0.9225288033485413]]]
     )
@@ -91,47 +91,3 @@ def OU_VOL(filtration: Filtration):
     t = filtration.time_process
 
     return torch.ones_like(t)
-
-
-def test_calculate_riemman_integral():
-    filtration = Filtration(
-        spatial_dimensions=1,
-        time_domain=torch.linspace(0, 1, 101),
-        number_of_paths=1,
-        seed=0,
-    )
-    filtration.forward_process = torch.exp(filtration.time_process)
-
-    forward_sde = NumericalForwardSDE(
-        filtration=filtration,
-        initial_value=ZERO_INITIAL_VALUE,
-        drift=OU_DRIFT,
-        volatility=OU_VOL,
-    )
-
-    riemman_integral = forward_sde.calculate_riemman_integral()
-
-    deviation = filtration.forward_process + riemman_integral - 1
-    assert torch.mean(deviation**2) < 1e-3
-
-
-def test_calculate_ito_integral():
-    filtration = Filtration(
-        spatial_dimensions=1,
-        time_domain=torch.linspace(0, 1, 101),
-        number_of_paths=100,
-        seed=0,
-    )
-
-    forward_sde = NumericalForwardSDE(
-        filtration=filtration,
-        initial_value=ZERO_INITIAL_VALUE,
-        drift=OU_DRIFT,
-        volatility=lambda f: f.time_process,
-    )
-
-    ito_integral = forward_sde.calculate_ito_integral()
-
-    deviation = torch.mean(ito_integral**2 - filtration.time_process**2, axis=0)
-
-    assert torch.mean(deviation**2) < 0.2

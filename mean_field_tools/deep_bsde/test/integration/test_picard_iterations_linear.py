@@ -119,4 +119,6 @@ def test_picard_iterations_linear_on_y():
 
     result = FILTRATION.backward_process
 
-    assert torch.norm(benchmark - result) / NUMBER_OF_PATHS < 0.08
+    deviations = benchmark - result
+
+    assert torch.mean(deviations**2) + deviations.var() < 0.8

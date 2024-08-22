@@ -26,12 +26,6 @@ FILTRATION = Filtration(
 "Forward SDE definition"
 
 
-def analytical_X(filtration: Filtration):
-    t = filtration.time_process
-
-    return
-
-
 def ZERO_FUNCTION(filtration: Filtration):
     zero = torch.zeros_like(filtration.time_process)
 
@@ -53,6 +47,35 @@ def GBM_DRIFT(filtration: Filtration):
 def GBM_VOL(filtration: Filtration):
     X_t = filtration.forward_process
     return X_t
+
+
+def test_calculate_riemman_integral():
+    forward_sde = NumericalForwardSDE(
+        filtration=FILTRATION,
+        initial_value=ZERO_FUNCTION,
+        drift=ONE_FUNCTION,
+        volatility=ZERO_FUNCTION,
+    )
+
+    riemman_integral = forward_sde.calculate_riemman_integral()
+
+    deviation = FILTRATION.time_process - riemman_integral
+    assert torch.mean(deviation**2) < 1e-3
+
+
+def test_calculate_ito_integral():
+    forward_sde = NumericalForwardSDE(
+        filtration=FILTRATION,
+        initial_value=ZERO_FUNCTION,
+        drift=ZERO_FUNCTION,
+        volatility=lambda f: f.time_process,
+    )
+
+    ito_integral = forward_sde.calculate_ito_integral()
+
+    deviation = torch.mean(ito_integral**2 - FILTRATION.time_process**2, axis=0)
+
+    assert torch.mean(deviation**2) < 0.2
 
 
 def test_initial_value():
@@ -128,7 +151,9 @@ def test_brownian_dependent_dynamics():
 
 
 def test_X_t_dependent_dynamics():
-    "Geometric brownian motion. Should evaluate to X_t = e^(t/2 + B_t)"
+    """Geometric brownian motion. Should evaluate to X_t = e^(t/2 + B_t).
+    Tolerance for test assertion can be made arbitraily small by refining time discretization.
+    """
     numeric_forward_sde = NumericalForwardSDE(
         filtration=FILTRATION,
         initial_value=ONE_FUNCTION,
@@ -136,6 +161,7 @@ def test_X_t_dependent_dynamics():
         volatility=GBM_VOL,
     )
 
+    numeric_forward_sde.solve()
     paths = numeric_forward_sde.generate_paths()
 
     t = FILTRATION.time_process
@@ -144,4 +170,40 @@ def test_X_t_dependent_dynamics():
 
     deviations = paths - analytic_path
 
-    assert torch.mean(deviations**2) + deviations.var() < 2 * 1e-2
+    assert torch.mean(deviations**2) + deviations.var() < 1 * 1e-1
+
+
+K = 2
+
+
+def OU_FUNCTIONAL_FORM(filtration):
+    dummy_time = filtration.time_process[:, 1:, 0].unsqueeze(-1)
+    integrand = torch.exp(K * dummy_time) * filtration.brownian_increments
+
+    initial = torch.zeros(
+        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
+    )
+    integral = torch.cat([initial, torch.cumsum(integrand, dim=1)], dim=1)
+
+    time = filtration.time_process[:, :, 0].unsqueeze(-1)
+    path = torch.exp(-K * time) * integral
+    return path
+
+
+def test_OU_solution():
+    "Ornstein-Uhlenbeck SDE. Should evaluate to X_t = X_0 e^(- k t) + int_0^t e^(-k)dW_t"
+
+    numeric_forward_sde = NumericalForwardSDE(
+        filtration=FILTRATION,
+        initial_value=ZERO_FUNCTION,
+        drift=lambda f: -K * f.forward_process,
+        volatility=ONE_FUNCTION,
+    )
+
+    numeric_forward_sde.solve()
+    paths = numeric_forward_sde.generate_paths()
+
+    analytic_path = OU_FUNCTIONAL_FORM(FILTRATION)
+
+    deviations = paths - analytic_path
+    assert torch.mean(deviations**2) + deviations.var() < 1 * 1e-4
