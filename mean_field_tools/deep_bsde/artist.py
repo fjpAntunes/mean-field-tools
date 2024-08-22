@@ -236,7 +236,7 @@ class PicardIterationsArtist:
         plt.close()
 
     def plot_error_histogram(self):
-        _, axs = plt.subplots(2, 1, figsize=(4, 8))
+        _, axs = plt.subplots(2, 1, figsize=(4, 8), layout="constrained")
 
         error_y, error_z = self.calculate_errors()
         n_bins = 50
@@ -278,11 +278,6 @@ class PicardIterationsArtist:
     def plot_single_path(self):
         _, axs = plt.subplots(2, 1, layout="constrained")
         t = cast_to_np(self.filtration.time_process)[0, :, :]
-        y_hat = cast_to_np(self.filtration.backward_process)[0, :, :]
-        x_hat = cast_to_np(self.filtration.forward_process)[0, :, :]
-
-        axs[0].plot(t, x_hat, "b--", label="Forward Process - Approximation")
-        axs[1].plot(t, y_hat, "b--", label="Backward Process - Approximation")
 
         if self.analytical_forward_solution is not None:
             x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
@@ -292,12 +287,29 @@ class PicardIterationsArtist:
             y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
             axs[1].plot(t, y, color="r", label="Backward Process - Analytical")
 
+        y_hat = cast_to_np(self.filtration.backward_process)[0, :, :]
+        x_hat = cast_to_np(self.filtration.forward_process)[0, :, :]
+
+        axs[0].plot(t, x_hat, "b--", label="Forward Process - Approximation")
+        axs[1].plot(t, y_hat, "b--", label="Backward Process - Approximation")
+
         for i in [0, 1]:
             axs[i].legend()
         path = f"./.figures/single_path_{self.iteration}.png"
 
         plt.savefig(path)
 
+        plt.close()
+
+    def plot_loss_along_iteration(self):
+        loss_history = self.fbsde.backward_sde.y_approximator.loss_history
+        _, axs = plt.subplots()
+        iteration = range(len(loss_history))
+        axs.set_title("Loss history")
+        axs.plot(iteration, loss_history)
+        axs.set_yscale("log")
+        path = f"./.figures/loss_plot_{self.iteration}"
+        plt.savefig(path)
         plt.close()
 
     def end_of_iteration_callback(self, fbsde, iteration):
@@ -307,3 +319,4 @@ class PicardIterationsArtist:
         self.plot_error_histogram()
         self.plot_picard_operator_error()
         self.plot_single_path()
+        self.plot_loss_along_iteration()
