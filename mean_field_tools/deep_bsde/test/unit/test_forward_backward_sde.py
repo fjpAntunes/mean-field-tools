@@ -106,6 +106,7 @@ def test_backward_picard_iteration_convergence():
     forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
+        volatility_functional_form=lambda f: torch.ones_like(f.time_process),
     )
 
     backward_sde = BackwardSDE(
