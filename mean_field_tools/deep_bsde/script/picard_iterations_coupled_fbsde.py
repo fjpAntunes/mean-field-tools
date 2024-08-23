@@ -129,7 +129,7 @@ def analytical_X(filtration: Filtration):
     t = filtration.time_process
     T = t[:, -1].unsqueeze(-1)
 
-    first_term = -TAU * T / (1 + Q * T)
+    first_term = -TAU * t / (1 + Q * T)
     dummy_time = filtration.time_process
     integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
     initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))

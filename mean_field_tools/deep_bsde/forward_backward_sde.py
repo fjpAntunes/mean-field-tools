@@ -20,6 +20,9 @@ class ForwardSDE:
     def __init__(self, filtration: Filtration):
         self.filtration = filtration
 
+    def solve(self):
+        pass
+
     def generate_paths(self):
         pass
 
@@ -334,6 +337,7 @@ class ForwardBackwardSDE:
         Args:
             approximator_args (dict, optional): Arguments for the neural network training. Defaults to {}.
         """
+        self.forward_sde.solve()
         self.backward_sde.solve(approximator_args)
 
     def _initialize_forward_process(self, forward_process, forward_volatility):
