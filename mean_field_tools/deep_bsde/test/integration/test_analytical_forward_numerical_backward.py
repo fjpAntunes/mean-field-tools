@@ -9,7 +9,7 @@ $$
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
-    ForwardSDE,
+    AnalyticForwardSDE,
     ForwardBackwardSDE,
 )
 import torch
@@ -60,7 +60,7 @@ def test_analytical_forward_numerical_backward():
         seed=0,
     )
 
-    forward_sde = ForwardSDE(
+    forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
     )

@@ -17,6 +17,81 @@ def zero_function(filtration: Filtration):
 
 
 class ForwardSDE:
+    def __init__(self, filtration: Filtration):
+        self.filtration = filtration
+
+    def solve(self):
+        pass
+
+    def generate_paths(self):
+        pass
+
+    def get_volatility(self):
+        pass
+
+
+class NumericalForwardSDE(ForwardSDE):
+    """Implements numerical solution for stochastic differential equations
+    through Picard iterations.
+    """
+
+    def __init__(
+        self,
+        filtration: Filtration,
+        initial_value: filtrationMeasurableFunction,
+        drift: filtrationMeasurableFunction,
+        volatility: filtrationMeasurableFunction,
+    ):
+        self.filtration = filtration
+        self.initial_value = initial_value
+        self.drift = drift
+        self.volatility = volatility
+
+    def _initial_integral_term(self):
+        initial = torch.zeros_like(self.filtration.time_process[:, 0, :]).unsqueeze(1)
+        return initial
+
+    def calculate_riemman_integral(self):
+        initial = self._initial_integral_term()
+        drift = self.drift(self.filtration)[:, :-1, :]
+        dt = self.filtration.dt
+
+        riemman_integral = torch.cat([initial, torch.cumsum(drift * dt, axis=1)], dim=1)
+        return riemman_integral
+
+    def calculate_ito_integral(self):
+        initial = self._initial_integral_term()
+        vol = self.volatility(self.filtration)[:, :-1, :]
+        dBt = self.filtration.brownian_increments
+
+        ito_integral = torch.cat([initial, torch.cumsum(vol * dBt, axis=1)], dim=1)
+
+        return ito_integral
+
+    def solve(self, tolerance: float = 1e-4):
+        if self.filtration.forward_process is None:
+            self.filtration.forward_process = self.filtration.time_process
+
+        delta = 1
+        while delta > tolerance:
+            paths = self.generate_paths()
+            deviation = paths - self.filtration.forward_process
+            delta = torch.mean(deviation**2) + deviation.var()
+            self.filtration.forward_process = paths
+
+    def generate_paths(self):
+        initial_value = self.initial_value(self.filtration)
+        riemman_term = self.calculate_riemman_integral()
+
+        ito_term = self.calculate_ito_integral()
+
+        return initial_value + riemman_term + ito_term
+
+    def get_volatility(self):
+        return self.volatility(self.filtration)
+
+
+class AnalyticForwardSDE(ForwardSDE):
     """Implements stochastic process of the form X_t = f(t, B_t)"""
 
     def __init__(
@@ -29,8 +104,8 @@ class ForwardSDE:
         self.functional_form = functional_form
         self.volatility_functional_form = volatility_functional_form
 
-    def generate_paths(self, filtration: Filtration):
-        self.paths = self.functional_form(filtration)
+    def generate_paths(self):
+        self.paths = self.functional_form(self.filtration)
         return self.paths
 
     def get_volatility(self):
@@ -228,14 +303,17 @@ class ForwardBackwardSDE:
     """This class manipulates both forward and backward SDE objects in order to implement Picard iterations numerical scheme."""
 
     def __init__(
-        self, filtration: Filtration, forward_sde: ForwardSDE, backward_sde: BackwardSDE
+        self,
+        filtration: Filtration,
+        forward_sde: ForwardSDE,
+        backward_sde: BackwardSDE,
     ):
         self.filtration = filtration
         self.forward_sde = forward_sde
         self.backward_sde = backward_sde
 
     def _add_forward_process_to_filtration(self):
-        forward_process = self.forward_sde.functional_form(self.filtration)
+        forward_process = self.forward_sde.generate_paths()
         self.filtration.forward_process = forward_process
 
     def _add_forward_volatility_to_filtration(self):
@@ -259,7 +337,21 @@ class ForwardBackwardSDE:
         Args:
             approximator_args (dict, optional): Arguments for the neural network training. Defaults to {}.
         """
+        self.forward_sde.solve()
         self.backward_sde.solve(approximator_args)
+
+    def _initialize_forward_process(self, forward_process, forward_volatility):
+        if forward_process is None:
+            self.filtration.forward_process = self.filtration.brownian_process
+        else:
+            self.filtration.forward_process = forward_process
+
+        if forward_volatility is None:
+            self.filtration.forward_volatility = torch.ones_like(
+                self.filtration.time_process
+            )
+        else:
+            self.filtration.forward_volatility = forward_volatility
 
     def _initialize_backward_process(self, backward_process, backward_volatility):
         self.filtration.backward_process = backward_process
@@ -268,6 +360,8 @@ class ForwardBackwardSDE:
     def backward_solve(
         self,
         number_of_iterations: int,
+        initial_forward_process=None,
+        initial_forward_volatility=None,
         plotter: PicardIterationsArtist = None,
         approximator_args: dict = {},
     ):
@@ -284,14 +378,17 @@ class ForwardBackwardSDE:
             number_of_iterations (int): _description_
             approximator_args (dict, optional): _description_. Defaults to {}.
         """
-        self._add_forward_process_to_filtration()
-        self._add_forward_volatility_to_filtration()
+        self._initialize_forward_process(
+            initial_forward_process, initial_forward_volatility
+        )
         self._initialize_backward_process(
-            self.filtration.forward_process, self.filtration.forward_volatility
+            self.filtration.time_process, torch.ones_like(self.filtration.time_process)
         )
         for i in range(number_of_iterations):
             self._single_picard_step(approximator_args)
             self._add_backward_process_to_filtration()
             self._add_backward_volatility_to_filtration()
+            self._add_forward_process_to_filtration()
+            self._add_forward_volatility_to_filtration()
             if plotter is not None:
                 plotter.end_of_iteration_callback(fbsde=self, iteration=i)

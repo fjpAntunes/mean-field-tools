@@ -158,10 +158,12 @@ class PicardIterationsArtist:
         filtration: Filtration,
         analytical_backward_solution: Callable[[Filtration], torch.Tensor] = None,
         analytical_backward_volatility: Callable[[Filtration], torch.Tensor] = None,
+        analytical_forward_solution: Callable[[Filtration], torch.Tensor] = None,
     ):
         self.filtration = filtration
 
         self.analytical_backward_solution = analytical_backward_solution
+        self.analytical_forward_solution = analytical_forward_solution
         self.analytical_backward_volatility = analytical_backward_volatility
 
     def violin_plot(self, ax, time, errors, quantile_value):
@@ -234,7 +236,7 @@ class PicardIterationsArtist:
         plt.close()
 
     def plot_error_histogram(self):
-        _, axs = plt.subplots(2, 1, figsize=(4, 8))
+        _, axs = plt.subplots(2, 1, figsize=(4, 8), layout="constrained")
 
         error_y, error_z = self.calculate_errors()
         n_bins = 50
@@ -243,7 +245,10 @@ class PicardIterationsArtist:
 
         for i in range(2):
             axs[i].grid(True)
-            axs[i].set_xlim(-1, 1)
+            # axs[i].set_xlim(-1, 1)
+
+        axs[0].set_ylabel(r"$(\hat Y - Y)$")
+        axs[1].set_ylabel(r"$(\hat Z - Z)$")
         plt.savefig(f"./.figures/error_histogram_{self.iteration}.png")
         plt.close()
 
@@ -270,9 +275,48 @@ class PicardIterationsArtist:
         plt.savefig(f"./.figures/picard_operator_error_{self.iteration}.png")
         plt.close()
 
+    def plot_single_path(self):
+        _, axs = plt.subplots(2, 1, layout="constrained")
+        t = cast_to_np(self.filtration.time_process)[0, :, :]
+
+        if self.analytical_forward_solution is not None:
+            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
+            axs[0].plot(t, x, color="r", label="Forward Process - Analytical")
+
+        if self.analytical_backward_solution is not None:
+            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
+            axs[1].plot(t, y, color="r", label="Backward Process - Analytical")
+
+        y_hat = cast_to_np(self.filtration.backward_process)[0, :, :]
+        x_hat = cast_to_np(self.filtration.forward_process)[0, :, :]
+
+        axs[0].plot(t, x_hat, "b--", label="Forward Process - Approximation")
+        axs[1].plot(t, y_hat, "b--", label="Backward Process - Approximation")
+
+        for i in [0, 1]:
+            axs[i].legend()
+        path = f"./.figures/single_path_{self.iteration}.png"
+
+        plt.savefig(path)
+
+        plt.close()
+
+    def plot_loss_along_iteration(self):
+        loss_history = self.fbsde.backward_sde.y_approximator.loss_history
+        _, axs = plt.subplots()
+        iteration = range(len(loss_history))
+        axs.set_title("Loss history")
+        axs.plot(iteration, loss_history)
+        axs.set_yscale("log")
+        path = f"./.figures/loss_plot_{self.iteration}"
+        plt.savefig(path)
+        plt.close()
+
     def end_of_iteration_callback(self, fbsde, iteration):
         self.iteration = iteration
         self.fbsde = fbsde
         self.plot_error_along_time()
         self.plot_error_histogram()
         self.plot_picard_operator_error()
+        self.plot_single_path()
+        self.plot_loss_along_iteration()

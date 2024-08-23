@@ -1,4 +1,8 @@
-from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, ForwardSDE
+from mean_field_tools.deep_bsde.forward_backward_sde import (
+    Filtration,
+    AnalyticForwardSDE,
+    NumericalForwardSDE,
+)
 from mean_field_tools.deep_bsde.utils import tensors_are_close, L_inf_norm
 import torch
 
@@ -26,11 +30,11 @@ def OU_FUNCTIONAL_FORM(filtration):
     return path
 
 
-ornstein_uhlenbeck = ForwardSDE(
+ornstein_uhlenbeck = AnalyticForwardSDE(
     filtration=FILTRATION, functional_form=OU_FUNCTIONAL_FORM
 )
 
-ornstein_uhlenbeck.generate_paths(FILTRATION)
+ornstein_uhlenbeck.generate_paths()
 
 
 def test_path_mean():
@@ -58,13 +62,32 @@ def test_ou_path():
         seed=0,
     )
 
-    ornstein_uhlenbeck = ForwardSDE(
+    ornstein_uhlenbeck = AnalyticForwardSDE(
         filtration=filtration, functional_form=OU_FUNCTIONAL_FORM
     )
 
-    ornstein_uhlenbeck.generate_paths(filtration)
+    ornstein_uhlenbeck.generate_paths()
     benchmark = torch.Tensor(
         [[[0.0], [0.8896945714950562], [0.46808281540870667], [-0.9225288033485413]]]
     )
 
     assert tensors_are_close(ornstein_uhlenbeck.paths, benchmark)
+
+
+def ZERO_INITIAL_VALUE(filtration: Filtration):
+    t = filtration.time_process
+    zeros = torch.zero_like(t[:, 0, :])
+
+    return zeros
+
+
+def OU_DRIFT(filtration: Filtration):
+    X_t = filtration.forward_process
+
+    return -K * X_t
+
+
+def OU_VOL(filtration: Filtration):
+    t = filtration.time_process
+
+    return torch.ones_like(t)
