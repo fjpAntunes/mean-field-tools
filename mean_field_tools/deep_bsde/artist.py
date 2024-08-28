@@ -303,9 +303,9 @@ class PicardIterationsArtist:
 
     def plot_loss_along_iteration(self):
         loss_history = self.fbsde.backward_sde.y_approximator.loss_history
-        _, axs = plt.subplots()
+        _, axs = plt.subplots(layout="constrained")
         iteration = range(len(loss_history))
-        axs.set_title("Loss history")
+        axs.set_title(f"Elicitability Loss history for iteration {self.iteration + 1}")
         axs.plot(iteration, loss_history)
         axs.set_yscale("log")
         path = f"./.figures/loss_plot_{self.iteration}"
