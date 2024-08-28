@@ -73,7 +73,7 @@ class Filtration:
         number_of_paths,
         seed=None,
     ):
-        generator = BrownianIncrementGenerator(
+        brownian_increment_generator = BrownianIncrementGenerator(
             number_of_paths=number_of_paths,
             spatial_dimensions=spatial_dimensions,
             sampling_times=time_domain,
@@ -84,7 +84,7 @@ class Filtration:
         self.dt = time_domain[1] - time_domain[0]
         self.number_of_paths = number_of_paths
 
-        self.brownian_increments = generator()
+        self.brownian_increments = brownian_increment_generator()
 
         self.brownian_process = self._generate_brownian_process(
             self.brownian_increments

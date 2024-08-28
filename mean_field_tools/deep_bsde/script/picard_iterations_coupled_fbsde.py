@@ -29,6 +29,11 @@ FILTRATION = Filtration(
 
 "Forward SDE definition"
 
+XI = torch.distributions.normal.Normal(loc=1, scale=2).sample(
+    sample_shape=(NUMBER_OF_PATHS, 1, SPATIAL_DIMENSIONS)
+)
+
+
 Q = 1
 TAU = 1
 SIGMA = 1
@@ -53,7 +58,7 @@ def VOLATILITY(filtration: Filtration):
 
 forward_sde = NumericalForwardSDE(
     filtration=FILTRATION,
-    initial_value=ZERO_FUNCTION,
+    initial_value=XI,
     drift=DRIFT,
     volatility=VOLATILITY,
 )
@@ -111,13 +116,6 @@ PICARD_ITERATION_ARGS = {
 "Solving"
 
 
-def analytical_Y(filtration: Filtration):
-    X_t = filtration.forward_process
-    t = filtration.time_process
-    T = t[:, -1].unsqueeze(-1)
-    return (Q * X_t + TAU) / (1 + Q * (T - t))
-
-
 def analytical_Z(filtration: Filtration):
     t = filtration.time_process
     T = t[:, -1].unsqueeze(-1)
@@ -129,6 +127,8 @@ def analytical_X(filtration: Filtration):
     t = filtration.time_process
     T = t[:, -1].unsqueeze(-1)
 
+    initial_conidtion_term = XI * (1 + Q * (T - t)) / (1 + Q * T)
+
     first_term = -TAU * t / (1 + Q * T)
     dummy_time = filtration.time_process
     integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
@@ -138,7 +138,14 @@ def analytical_X(filtration: Filtration):
     integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
     second_term = SIGMA * (1 + Q * (T - t)) * integral_term
 
-    return first_term + second_term
+    return initial_conidtion_term + first_term + second_term
+
+
+def analytical_Y(filtration: Filtration):
+    X_t = analytical_X(filtration=filtration)
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+    return (Q * X_t + TAU) / (1 + Q * (T - t))
 
 
 iterations_artist = PicardIterationsArtist(

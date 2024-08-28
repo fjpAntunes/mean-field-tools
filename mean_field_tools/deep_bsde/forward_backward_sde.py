@@ -80,12 +80,14 @@ class NumericalForwardSDE(ForwardSDE):
             self.filtration.forward_process = paths
 
     def generate_paths(self):
-        initial_value = self.initial_value(self.filtration)
+        initial_value = self.initial_value
         riemman_term = self.calculate_riemman_integral()
 
         ito_term = self.calculate_ito_integral()
 
-        return initial_value + riemman_term + ito_term
+        path = initial_value + riemman_term + ito_term
+
+        return path
 
     def get_volatility(self):
         return self.volatility(self.filtration)
@@ -182,7 +184,7 @@ class BackwardSDE:
         self.y_approximator = FunctionApproximator(
             domain_dimension=domain_dimensions,
             output_dimension=self.filtration.spatial_dimensions,
-            **nn_args
+            **nn_args,
         )
 
     def generate_backward_process(self):
