@@ -96,6 +96,28 @@ def test_initial_value():
     assert torch.mean(deviations**2) + deviations.var() < 1e-4
 
 
+def test_random_initial_value():
+    "Paths should evaluate to xi + B_t"
+    initial_condition_size = (NUMBER_OF_PATHS, 1, SPATIAL_DIMENSIONS)
+    XI = torch.distributions.normal.Normal(loc=1, scale=2).sample(
+        sample_shape=initial_condition_size
+    )
+    numeric_forward_sde = NumericalForwardSDE(
+        filtration=FILTRATION,
+        initial_value=XI,
+        drift=ZERO_FUNCTION,
+        volatility=ONE_FUNCTION,
+    )
+
+    paths = numeric_forward_sde.generate_paths()
+
+    brownian = FILTRATION.brownian_process
+
+    deviations = paths - brownian - XI
+
+    assert torch.mean(deviations**2) + deviations.var() < 1e-4
+
+
 def test_drift():
     "Should evaluate to X_t = t + B_t"
     numeric_forward_sde = NumericalForwardSDE(
