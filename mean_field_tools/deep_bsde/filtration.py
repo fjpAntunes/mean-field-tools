@@ -92,7 +92,9 @@ class Filtration:
         self.time_process = self._generate_time_process()
 
         self.forward_process = None
+        self.forward_volatility = None
         self.backward_process = None
+        self.backward_volatility = None
 
         self.processes = [
             self.time_process,

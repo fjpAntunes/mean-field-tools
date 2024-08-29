@@ -88,7 +88,10 @@ backward_sde.initialize_approximator(
 "FBSDE definition"
 
 forward_backward_sde = ForwardBackwardSDE(
-    filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde
+    filtration=FILTRATION,
+    forward_sde=forward_sde,
+    backward_sde=backward_sde,
+    damping=lambda i: i / (1 + i),
 )
 
 

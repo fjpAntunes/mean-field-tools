@@ -28,6 +28,7 @@ FILTRATION = Filtration(
     seed=0,
 )
 
+
 "Forward SDE definition"
 
 Q = 1
