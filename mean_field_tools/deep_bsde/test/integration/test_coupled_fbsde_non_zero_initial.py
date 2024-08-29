@@ -152,7 +152,7 @@ def analytical_Y(filtration: Filtration):
     return (Q * X_t + TAU) / (1 + Q * (T - t))
 
 
-def test_coupled_fbsde_zero_initial_condition():
+def test_coupled_fbsde_non_zero_initial_condition():
 
     forward_backward_sde.backward_solve(
         number_of_iterations=10,
