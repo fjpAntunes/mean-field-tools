@@ -7,7 +7,6 @@ Where $W_t$ is the standard brownian motion.
 """
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
 
 
@@ -32,18 +31,12 @@ def test_terminal_quadratic_no_drift():
 
     bsde.initialize_approximator()
 
-    artist = FunctionApproximatorArtist(
-        save_figures=False, analytical_solution=ANALYTICAL_SOLUTION
-    )
-
     bsde.solve(
         approximator_args={
             "training_strategy_args": {
                 "batch_size": 100,
                 "number_of_iterations": 500,
                 "number_of_batches": 5,
-                "number_of_plots": 5,
-                "plotter": artist,
             },
         }
     )

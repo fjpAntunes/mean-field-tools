@@ -1,7 +1,7 @@
 """Tests quadratic no drift"""
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
+from mean_field_tools.deep_bsde.artist import FunctionApproximatorArtist
 import torch
 
 
@@ -35,11 +35,13 @@ artist = FunctionApproximatorArtist(
 
 bsde.solve(
     approximator_args={
-        "batch_size": 100,
-        "number_of_iterations": 5000,
-        "number_of_epochs": 50,
-        "number_of_plots": 5,
-        "plotter": artist,
+        "training_strategy_args": {
+            "batch_size": 100,
+            "number_of_iterations": 5000,
+            "number_of_batches": 50,
+            "number_of_plots": 5,
+            "plotter": artist,
+        }
     }
 )
 

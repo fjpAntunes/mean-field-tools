@@ -1,34 +1,118 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
 from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
 from typing import Callable, List
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
-DriftType = Callable[
+filtrationMeasurableFunction = Callable[
     [Filtration],
     torch.Tensor,  # Shape should be (num_paths, path_length, spatial_dim)
 ]
 
 
-def zero_drift(filtration: Filtration):
+def zero_function(filtration: Filtration):
     return filtration.time_process * 0
 
 
 class ForwardSDE:
+    def __init__(self, filtration: Filtration):
+        self.filtration = filtration
+
+    def solve(self):
+        pass
+
+    def generate_paths(self):
+        pass
+
+    def get_volatility(self):
+        pass
+
+
+class NumericalForwardSDE(ForwardSDE):
+    """Implements numerical solution for stochastic differential equations
+    through Picard iterations.
+    """
+
+    def __init__(
+        self,
+        filtration: Filtration,
+        initial_value: filtrationMeasurableFunction,
+        drift: filtrationMeasurableFunction,
+        volatility: filtrationMeasurableFunction,
+    ):
+        self.filtration = filtration
+        self.initial_value = initial_value
+        self.drift = drift
+        self.volatility = volatility
+
+    def _initial_integral_term(self):
+        initial = torch.zeros_like(self.filtration.time_process[:, 0, :]).unsqueeze(1)
+        return initial
+
+    def calculate_riemman_integral(self):
+        initial = self._initial_integral_term()
+        drift = self.drift(self.filtration)[:, :-1, :]
+        dt = self.filtration.dt
+
+        riemman_integral = torch.cat([initial, torch.cumsum(drift * dt, axis=1)], dim=1)
+        return riemman_integral
+
+    def calculate_ito_integral(self):
+        initial = self._initial_integral_term()
+        vol = self.volatility(self.filtration)[:, :-1, :]
+        dBt = self.filtration.brownian_increments
+
+        ito_integral = torch.cat([initial, torch.cumsum(vol * dBt, axis=1)], dim=1)
+
+        return ito_integral
+
+    def solve(self, tolerance: float = 1e-4):
+        if self.filtration.forward_process is None:
+            self.filtration.forward_process = self.filtration.time_process
+
+        delta = 1
+        while delta > tolerance:
+            paths = self.generate_paths()
+            deviation = paths - self.filtration.forward_process
+            delta = torch.mean(deviation**2) + deviation.var()
+            self.filtration.forward_process = paths
+
+    def generate_paths(self):
+        initial_value = self.initial_value
+        riemman_term = self.calculate_riemman_integral()
+
+        ito_term = self.calculate_ito_integral()
+
+        path = initial_value + riemman_term + ito_term
+
+        return path
+
+    def get_volatility(self):
+        return self.volatility(self.filtration)
+
+
+class AnalyticForwardSDE(ForwardSDE):
     """Implements stochastic process of the form X_t = f(t, B_t)"""
 
     def __init__(
         self,
         filtration: Filtration,
-        functional_form,
+        functional_form: filtrationMeasurableFunction,
+        volatility_functional_form: filtrationMeasurableFunction = zero_function,
     ):
         self.filtration = filtration
         self.functional_form = functional_form
+        self.volatility_functional_form = volatility_functional_form
 
-    def generate_paths(self, filtration: Filtration):
-        self.paths = self.functional_form(filtration)
+    def generate_paths(self):
+        self.paths = self.functional_form(self.filtration)
         return self.paths
+
+    def get_volatility(self):
+        volatility = self.volatility_functional_form(self.filtration)
+        return volatility
 
 
 class BackwardSDE:
@@ -55,7 +139,7 @@ class BackwardSDE:
         terminal_condition_function: Callable[[Filtration], torch.Tensor],
         filtration: Filtration,
         exogenous_process=["time_process", "brownian_process"],
-        drift: DriftType = zero_drift,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
     ):
         r"""Initialization function of the class.
 
@@ -63,7 +147,7 @@ class BackwardSDE:
             terminal_condition_function (Callable[[Filtration], torch.Tensor]): Terminal condition $\xi$ for the BSDE. Should be a function of the filtration.
             filtration (Filtration): Filtration object that holds the state of the processes in a time structured manner.
             exogenous_process (list, optional): Processes on which the BSDE depends.
-              possible processes are "time_process", "brownian_process", "forward_process", "backward_process".
+              possible processes are "time_process", "brownian_process", "forward_process".
               Defaults to ["time_process", "brownian_process"].
             drift (DriftType, optional): Drift function $f$ for the BSDE. Note the sign convention. Defaults to zero_drift.
         """
@@ -78,10 +162,9 @@ class BackwardSDE:
                 "time_process",
                 "brownian_process",
                 "forward_process",
-                "backward_process",
             ]:
                 raise ValueError(
-                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process", "backward_process"'
+                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process"'
                 )
 
         self.exogenous_process = exogenous_process_list
@@ -101,12 +184,22 @@ class BackwardSDE:
         self.y_approximator = FunctionApproximator(
             domain_dimension=domain_dimensions,
             output_dimension=self.filtration.spatial_dimensions,
-            **nn_args
+            **nn_args,
         )
 
-    def generate_paths(self):
+    def generate_backward_process(self):
         input = self.set_approximator_input()
         return self.y_approximator.detached_call(input)
+
+    def generate_backward_volatility(self):
+        input = self.set_approximator_input()
+        grad_y_wrt_x = self.y_approximator.grad(input)[:, :, 1:]
+        if "brownian_process" in self.exogenous_process:
+            return grad_y_wrt_x
+
+        if "forward_process" in self.exogenous_process:
+            volatility_of_x = self.filtration.forward_volatility
+            return grad_y_wrt_x * volatility_of_x
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,
@@ -171,6 +264,24 @@ class BackwardSDE:
         out = torch.cat(processes, dim=2)
         return out
 
+    def calculate_volatility_integral(self) -> torch.Tensor:
+        volatility = self.generate_backward_volatility()[:, :-1, :]
+        increments = volatility * self.filtration.brownian_increments
+        total = torch.sum(increments, dim=1).unsqueeze(1)
+        self.volatility_integral = total - torch.cumsum(increments, dim=1)
+        terminal = torch.zeros_like(self.volatility_integral[:, -1:, :])
+
+        self.volatility_integral = torch.cat(
+            [self.volatility_integral, terminal], dim=1
+        )
+        return self.volatility_integral
+
+    def calculate_picard_operator(self) -> torch.Tensor:
+        terminal_condition = self.set_terminal_condition().unsqueeze(1)
+        _, drift_integral = self.set_drift_path()
+        volatility_integral = self.calculate_volatility_integral()
+        return terminal_condition + drift_integral - volatility_integral
+
     def solve(self, approximator_args: dict = None):
         """Performs the minimization step in order to calculate the conditional expectation through the elicitability method.
 
@@ -194,19 +305,61 @@ class ForwardBackwardSDE:
     """This class manipulates both forward and backward SDE objects in order to implement Picard iterations numerical scheme."""
 
     def __init__(
-        self, filtration: Filtration, forward_sde: ForwardSDE, backward_sde: BackwardSDE
+        self,
+        filtration: Filtration,
+        forward_sde: ForwardSDE,
+        backward_sde: BackwardSDE,
+        damping: Callable[[int], float] = lambda i: 0,
     ):
         self.filtration = filtration
         self.forward_sde = forward_sde
         self.backward_sde = backward_sde
+        self.damping = damping
+        self.iteration = 0
+
+    def _damping_update(self, current, update):
+        if current is None:
+            return update
+
+        coefficient = self.damping(self.iteration)
+
+        damped_update = coefficient * current + (1 - coefficient) * update
+
+        return damped_update
 
     def _add_forward_process_to_filtration(self):
-        forward_process = self.forward_sde.functional_form(self.filtration)
-        self.filtration.forward_process = forward_process
+        updated_forward_process = self.forward_sde.generate_paths()
+        damped_update_forward_process = self._damping_update(
+            current=self.filtration.forward_process,
+            update=updated_forward_process,
+        )
+        self.filtration.forward_process = damped_update_forward_process
+
+    def _add_forward_volatility_to_filtration(self):
+        updated_forward_volatility = self.forward_sde.get_volatility()
+        damped_update_forward_volatility = self._damping_update(
+            current=self.filtration.forward_volatility,
+            update=updated_forward_volatility,
+        )
+        self.filtration.forward_volatility = damped_update_forward_volatility
 
     def _add_backward_process_to_filtration(self):
-        backward_process = self.backward_sde.generate_paths()
-        self.filtration.backward_process = backward_process
+        updated_backward_process = self.backward_sde.generate_backward_process()
+        damped_update_backward_process = self._damping_update(
+            current=self.filtration.backward_process,
+            update=updated_backward_process,
+        )
+
+        self.filtration.backward_process = damped_update_backward_process
+
+    def _add_backward_volatility_to_filtration(self):
+        updated_backward_volatility = self.backward_sde.generate_backward_volatility()
+        damped_updated_backward_volatility = self._damping_update(
+            current=self.filtration.backward_volatility,
+            update=updated_backward_volatility,
+        )
+
+        self.filtration.backward_volatility = damped_updated_backward_volatility
 
     def _single_picard_step(self, approximator_args: dict = {}):
         """Performs a single step of the Picard operator for the backward SDE.
@@ -218,9 +371,34 @@ class ForwardBackwardSDE:
         Args:
             approximator_args (dict, optional): Arguments for the neural network training. Defaults to {}.
         """
+        self.forward_sde.solve()
         self.backward_sde.solve(approximator_args)
 
-    def backward_solve(self, number_of_iterations: int, approximator_args: dict = {}):
+    def _initialize_forward_process(self, forward_process, forward_volatility):
+        if forward_process is None:
+            self.filtration.forward_process = self.filtration.brownian_process
+        else:
+            self.filtration.forward_process = forward_process
+
+        if forward_volatility is None:
+            self.filtration.forward_volatility = torch.ones_like(
+                self.filtration.time_process
+            )
+        else:
+            self.filtration.forward_volatility = forward_volatility
+
+    def _initialize_backward_process(self, backward_process, backward_volatility):
+        self.filtration.backward_process = backward_process
+        self.filtration.backward_volatility = backward_volatility
+
+    def backward_solve(
+        self,
+        number_of_iterations: int,
+        initial_forward_process=None,
+        initial_forward_volatility=None,
+        plotter: PicardIterationsArtist = None,
+        approximator_args: dict = {},
+    ):
         """Solve the FBSDE system through Picard Iterations.
 
 
@@ -234,12 +412,20 @@ class ForwardBackwardSDE:
             number_of_iterations (int): _description_
             approximator_args (dict, optional): _description_. Defaults to {}.
         """
-        self._add_forward_process_to_filtration()
-        if "backward_process" not in self.backward_sde.exogenous_process:
+        self._initialize_forward_process(
+            initial_forward_process, initial_forward_volatility
+        )
+        self._initialize_backward_process(
+            self.filtration.time_process, torch.ones_like(self.filtration.time_process)
+        )
+        for i in range(number_of_iterations):
+            self.iteration = i
             self._single_picard_step(approximator_args)
-
-        if "backward_process" in self.backward_sde.exogenous_process:
-            self.filtration.backward_process = self.filtration.forward_process
-            for _ in range(number_of_iterations):
-                self._single_picard_step(approximator_args)
-                self._add_backward_process_to_filtration()
+            self._add_backward_process_to_filtration()
+            self._add_backward_volatility_to_filtration()
+            self._add_forward_process_to_filtration()
+            self._add_forward_volatility_to_filtration()
+            if plotter is not None:
+                plotter.end_of_iteration_callback(fbsde=self, iteration=i)
+        if plotter is not None:
+            plotter.end_of_solver_callback(fbsde=self)

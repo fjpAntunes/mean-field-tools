@@ -9,10 +9,9 @@ $$
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
-    ForwardSDE,
+    AnalyticForwardSDE,
     ForwardBackwardSDE,
 )
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximatorArtist
 import torch
 import numpy as np
 
@@ -61,7 +60,7 @@ def test_analytical_forward_numerical_backward():
         seed=0,
     )
 
-    forward_sde = ForwardSDE(
+    forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
     )
@@ -78,23 +77,18 @@ def test_analytical_forward_numerical_backward():
         filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde
     )
 
-    artist = FunctionApproximatorArtist(
-        save_figures=False, analytical_solution=ANALYTICAL_SOLUTION
-    )
-
     APPROXIMATOR_ARGS = {
         "training_strategy_args": {
             "batch_size": 100,
             "number_of_iterations": 500,
             "number_of_batches": 5,
-            "number_of_plots": 5,
-            "plotter": artist,
+            "number_of_plots": 0,
         },
     }
     forward_backward_sde._add_forward_process_to_filtration()
     forward_backward_sde._single_picard_step(approximator_args=APPROXIMATOR_ARGS)
 
-    output = backward_sde.generate_paths()[0, :, :].tolist()
+    output = backward_sde.generate_backward_process()[0, :, :].tolist()
 
     benchmark = [
         [0.3472933769226074],

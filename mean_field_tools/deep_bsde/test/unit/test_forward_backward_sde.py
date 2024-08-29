@@ -1,6 +1,6 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardBackwardSDE,
-    ForwardSDE,
+    AnalyticForwardSDE,
     BackwardSDE,
 )
 
@@ -49,7 +49,7 @@ def setup():
         spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
     )
 
-    forward_sde = ForwardSDE(
+    forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
     )
@@ -85,7 +85,7 @@ def test_backward_single_picard_step():
             },
         }
     )
-    paths = forward_backward_sde.backward_sde.generate_paths()[:5, -1, :]
+    paths = forward_backward_sde.backward_sde.generate_backward_process()[:5, -1, :]
     benchmark = [
         [0.4628603458404541],
         [0.14914759993553162],
@@ -103,9 +103,10 @@ def test_backward_picard_iteration_convergence():
         spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
     )
 
-    forward_sde = ForwardSDE(
+    forward_sde = AnalyticForwardSDE(
         filtration=FILTRATION,
         functional_form=OU_FUNCTIONAL_FORM,
+        volatility_functional_form=lambda f: torch.ones_like(f.time_process),
     )
 
     backward_sde = BackwardSDE(
@@ -114,7 +115,6 @@ def test_backward_picard_iteration_convergence():
         ]
         * 0,
         filtration=FILTRATION,
-        exogenous_process=["time_process", "backward_process"],
         drift=lambda filtration: filtration.backward_process,
     )
     backward_sde.initialize_approximator()
@@ -127,6 +127,4 @@ def test_backward_picard_iteration_convergence():
 
     output = forward_backward_sde.filtration.backward_process[0, :, 0]
 
-    benchmark = torch.zeros_like(output)
-
-    assert tensors_are_close(output, benchmark, tolerance=1e-1, norm=L_inf_norm)
+    assert torch.mean(output**2) + output.var() < 5 * 1e-3
