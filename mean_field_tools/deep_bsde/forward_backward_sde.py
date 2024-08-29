@@ -80,12 +80,14 @@ class NumericalForwardSDE(ForwardSDE):
             self.filtration.forward_process = paths
 
     def generate_paths(self):
-        initial_value = self.initial_value(self.filtration)
+        initial_value = self.initial_value
         riemman_term = self.calculate_riemman_integral()
 
         ito_term = self.calculate_ito_integral()
 
-        return initial_value + riemman_term + ito_term
+        path = initial_value + riemman_term + ito_term
+
+        return path
 
     def get_volatility(self):
         return self.volatility(self.filtration)
@@ -182,7 +184,7 @@ class BackwardSDE:
         self.y_approximator = FunctionApproximator(
             domain_dimension=domain_dimensions,
             output_dimension=self.filtration.spatial_dimensions,
-            **nn_args
+            **nn_args,
         )
 
     def generate_backward_process(self):
@@ -307,25 +309,57 @@ class ForwardBackwardSDE:
         filtration: Filtration,
         forward_sde: ForwardSDE,
         backward_sde: BackwardSDE,
+        damping: Callable[[int], float] = lambda i: 0,
     ):
         self.filtration = filtration
         self.forward_sde = forward_sde
         self.backward_sde = backward_sde
+        self.damping = damping
+        self.iteration = 0
+
+    def _damping_update(self, current, update):
+        if current is None:
+            return update
+
+        coefficient = self.damping(self.iteration)
+
+        damped_update = coefficient * current + (1 - coefficient) * update
+
+        return damped_update
 
     def _add_forward_process_to_filtration(self):
-        forward_process = self.forward_sde.generate_paths()
-        self.filtration.forward_process = forward_process
+        updated_forward_process = self.forward_sde.generate_paths()
+        damped_update_forward_process = self._damping_update(
+            current=self.filtration.forward_process,
+            update=updated_forward_process,
+        )
+        self.filtration.forward_process = damped_update_forward_process
 
     def _add_forward_volatility_to_filtration(self):
-        self.filtration.forward_volatility = self.forward_sde.get_volatility()
+        updated_forward_volatility = self.forward_sde.get_volatility()
+        damped_update_forward_volatility = self._damping_update(
+            current=self.filtration.forward_volatility,
+            update=updated_forward_volatility,
+        )
+        self.filtration.forward_volatility = damped_update_forward_volatility
 
     def _add_backward_process_to_filtration(self):
-        backward_process = self.backward_sde.generate_backward_process()
-        self.filtration.backward_process = backward_process
+        updated_backward_process = self.backward_sde.generate_backward_process()
+        damped_update_backward_process = self._damping_update(
+            current=self.filtration.backward_process,
+            update=updated_backward_process,
+        )
+
+        self.filtration.backward_process = damped_update_backward_process
 
     def _add_backward_volatility_to_filtration(self):
-        backward_volatility = self.backward_sde.generate_backward_volatility()
-        self.filtration.backward_volatility = backward_volatility
+        updated_backward_volatility = self.backward_sde.generate_backward_volatility()
+        damped_updated_backward_volatility = self._damping_update(
+            current=self.filtration.backward_volatility,
+            update=updated_backward_volatility,
+        )
+
+        self.filtration.backward_volatility = damped_updated_backward_volatility
 
     def _single_picard_step(self, approximator_args: dict = {}):
         """Performs a single step of the Picard operator for the backward SDE.
@@ -385,6 +419,7 @@ class ForwardBackwardSDE:
             self.filtration.time_process, torch.ones_like(self.filtration.time_process)
         )
         for i in range(number_of_iterations):
+            self.iteration = i
             self._single_picard_step(approximator_args)
             self._add_backward_process_to_filtration()
             self._add_backward_volatility_to_filtration()
@@ -392,3 +427,5 @@ class ForwardBackwardSDE:
             self._add_forward_volatility_to_filtration()
             if plotter is not None:
                 plotter.end_of_iteration_callback(fbsde=self, iteration=i)
+        if plotter is not None:
+            plotter.end_of_solver_callback(fbsde=self)

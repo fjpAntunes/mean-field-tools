@@ -1,3 +1,4 @@
+"Zero initial condition case"
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
@@ -8,6 +9,7 @@ from mean_field_tools.deep_bsde.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
 )
+from mean_field_tools.deep_bsde.utils import L_2_norm
 import torch
 import numpy as np
 
@@ -29,20 +31,22 @@ FILTRATION = Filtration(
 
 "Forward SDE definition"
 
+
+def ZERO_FUNCTION(filtration: Filtration):
+    zero = torch.zeros_like(filtration.time_process)
+
+    return zero
+
+
+initial_condition_shape = (NUMBER_OF_PATHS, 1, SPATIAL_DIMENSIONS)
 XI = torch.distributions.normal.Normal(loc=1, scale=2).sample(
-    sample_shape=(NUMBER_OF_PATHS, 1, SPATIAL_DIMENSIONS)
+    sample_shape=initial_condition_shape
 )
 
 
 Q = 1
 TAU = 1
 SIGMA = 1
-
-
-def ZERO_FUNCTION(filtration: Filtration):
-    zero = torch.zeros_like(filtration.time_process)
-
-    return zero
 
 
 def DRIFT(filtration: Filtration):
@@ -86,6 +90,7 @@ backward_sde.initialize_approximator(
 )
 
 "FBSDE definition"
+"We need to introduce damping for the iterations to converge."
 
 forward_backward_sde = ForwardBackwardSDE(
     filtration=FILTRATION,
@@ -101,16 +106,12 @@ def ANALYTIC_SOLUTION(X_t, t, T):
 
 "Solver parameters"
 
-artist = FunctionApproximatorArtist(
-    save_figures=True, analytical_solution=ANALYTIC_SOLUTION
-)
 
 PICARD_ITERATION_ARGS = {
     "training_strategy_args": {
         "batch_size": 512,
         "number_of_iterations": 100,
         "number_of_batches": 100,
-        "plotter": artist,
         "number_of_plots": 1,
     },
 }
@@ -151,15 +152,20 @@ def analytical_Y(filtration: Filtration):
     return (Q * X_t + TAU) / (1 + Q * (T - t))
 
 
-iterations_artist = PicardIterationsArtist(
-    FILTRATION,
-    analytical_backward_solution=analytical_Y,
-    analytical_backward_volatility=analytical_Z,
-    analytical_forward_solution=analytical_X,
-)
+def test_coupled_fbsde_non_zero_initial_condition():
 
-forward_backward_sde.backward_solve(
-    number_of_iterations=10,
-    plotter=iterations_artist,
-    approximator_args=PICARD_ITERATION_ARGS,
-)
+    forward_backward_sde.backward_solve(
+        number_of_iterations=10,
+        approximator_args=PICARD_ITERATION_ARGS,
+    )
+
+    X = analytical_X(FILTRATION)
+    Y = analytical_Y(FILTRATION)
+    Z = analytical_Z(FILTRATION)
+
+    X_hat = FILTRATION.forward_process
+    Y_hat = FILTRATION.backward_process
+    Z_hat = FILTRATION.backward_volatility
+
+    deviation = L_2_norm(X - X_hat) + L_2_norm(Y - Y_hat) + L_2_norm(Z - Z_hat)
+    assert deviation < 0.006

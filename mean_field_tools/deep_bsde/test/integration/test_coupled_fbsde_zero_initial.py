@@ -1,14 +1,15 @@
+"Zero initial condition case"
 from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
     NumericalForwardSDE,
-    AnalyticForwardSDE,
     ForwardBackwardSDE,
 )
 from mean_field_tools.deep_bsde.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
 )
+from mean_field_tools.deep_bsde.utils import L_2_norm
 import torch
 import numpy as np
 
@@ -28,34 +29,21 @@ FILTRATION = Filtration(
     seed=0,
 )
 
-
 "Forward SDE definition"
-
-Q = 1
-TAU = 1
-SIGMA = 1
-
-
-def analytical_X(filtration: Filtration):
-    t = filtration.time_process
-    T = t[:, -1].unsqueeze(-1)
-
-    first_term = -TAU * t / (1 + Q * T)
-    dummy_time = filtration.time_process
-    integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
-    initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))
-
-    dB_u = filtration.brownian_increments
-    integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
-    second_term = SIGMA * (1 + Q * (T - t)) * integral_term
-
-    return first_term + second_term
 
 
 def ZERO_FUNCTION(filtration: Filtration):
     zero = torch.zeros_like(filtration.time_process)
 
     return zero
+
+
+XI = ZERO_FUNCTION(FILTRATION)
+
+
+Q = 1
+TAU = 1
+SIGMA = 1
 
 
 def DRIFT(filtration: Filtration):
@@ -69,10 +57,11 @@ def VOLATILITY(filtration: Filtration):
     return SIGMA * one
 
 
-forward_sde = AnalyticForwardSDE(
+forward_sde = NumericalForwardSDE(
     filtration=FILTRATION,
-    functional_form=analytical_X,
-    volatility_functional_form=VOLATILITY,
+    initial_value=XI,
+    drift=DRIFT,
+    volatility=VOLATILITY,
 )
 
 "Backward SDE definition"
@@ -110,29 +99,18 @@ def ANALYTIC_SOLUTION(X_t, t, T):
 
 "Solver parameters"
 
-artist = FunctionApproximatorArtist(
-    save_figures=True, analytical_solution=ANALYTIC_SOLUTION
-)
 
 PICARD_ITERATION_ARGS = {
     "training_strategy_args": {
         "batch_size": 512,
         "number_of_iterations": 100,
         "number_of_batches": 100,
-        "plotter": artist,
         "number_of_plots": 1,
     },
 }
 
 
 "Solving"
-
-
-def analytical_Y(filtration: Filtration):
-    X_t = filtration.forward_process
-    t = filtration.time_process
-    T = t[:, -1].unsqueeze(-1)
-    return (Q * X_t + TAU) / (1 + Q * (T - t))
 
 
 def analytical_Z(filtration: Filtration):
@@ -142,15 +120,46 @@ def analytical_Z(filtration: Filtration):
     return (Q / (1 + Q * (T - t))) * SIGMA
 
 
-iterations_artist = PicardIterationsArtist(
-    FILTRATION,
-    analytical_backward_solution=analytical_Y,
-    analytical_backward_volatility=analytical_Z,
-    analytical_forward_solution=analytical_X,
-)
+def analytical_X(filtration: Filtration):
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
 
-forward_backward_sde.backward_solve(
-    number_of_iterations=10,
-    plotter=iterations_artist,
-    approximator_args=PICARD_ITERATION_ARGS,
-)
+    initial_conidtion_term = XI * (1 + Q * (T - t)) / (1 + Q * T)
+
+    first_term = -TAU * t / (1 + Q * T)
+    dummy_time = filtration.time_process
+    integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
+    initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))
+
+    dB_u = filtration.brownian_increments
+    integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
+    second_term = SIGMA * (1 + Q * (T - t)) * integral_term
+
+    return initial_conidtion_term + first_term + second_term
+
+
+def analytical_Y(filtration: Filtration):
+    X_t = analytical_X(filtration=filtration)
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+    return (Q * X_t + TAU) / (1 + Q * (T - t))
+
+
+def test_coupled_fbsde_zero_initial_condition():
+
+    forward_backward_sde.backward_solve(
+        number_of_iterations=10,
+        approximator_args=PICARD_ITERATION_ARGS,
+    )
+
+    X = analytical_X(FILTRATION)
+    Y = analytical_Y(FILTRATION)
+    Z = analytical_Z(FILTRATION)
+
+    X_hat = FILTRATION.forward_process
+    Y_hat = FILTRATION.backward_process
+    Z_hat = FILTRATION.backward_volatility
+
+    deviation = L_2_norm(X - X_hat) + L_2_norm(Y - Y_hat) + L_2_norm(Z - Z_hat)
+
+    assert deviation < 0.015
