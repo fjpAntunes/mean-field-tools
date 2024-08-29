@@ -82,7 +82,7 @@ def test_initial_value():
     "Paths should match brownian paths + 1"
     numeric_forward_sde = NumericalForwardSDE(
         filtration=FILTRATION,
-        initial_value=ONE_FUNCTION,
+        initial_value=ONE_FUNCTION(FILTRATION),
         drift=ZERO_FUNCTION,
         volatility=ONE_FUNCTION,
     )
@@ -96,11 +96,33 @@ def test_initial_value():
     assert torch.mean(deviations**2) + deviations.var() < 1e-4
 
 
+def test_random_initial_value():
+    "Paths should evaluate to xi + B_t"
+    initial_condition_size = (NUMBER_OF_PATHS, 1, SPATIAL_DIMENSIONS)
+    XI = torch.distributions.normal.Normal(loc=1, scale=2).sample(
+        sample_shape=initial_condition_size
+    )
+    numeric_forward_sde = NumericalForwardSDE(
+        filtration=FILTRATION,
+        initial_value=XI,
+        drift=ZERO_FUNCTION,
+        volatility=ONE_FUNCTION,
+    )
+
+    paths = numeric_forward_sde.generate_paths()
+
+    brownian = FILTRATION.brownian_process
+
+    deviations = paths - brownian - XI
+
+    assert torch.mean(deviations**2) + deviations.var() < 1e-4
+
+
 def test_drift():
     "Should evaluate to X_t = t + B_t"
     numeric_forward_sde = NumericalForwardSDE(
         filtration=FILTRATION,
-        initial_value=ZERO_FUNCTION,
+        initial_value=ZERO_FUNCTION(FILTRATION),
         drift=ONE_FUNCTION,
         volatility=ONE_FUNCTION,
     )
@@ -118,7 +140,7 @@ def test_vol():
     "Should evaluate to X_t = 2B_t"
     numeric_forward_sde = NumericalForwardSDE(
         filtration=FILTRATION,
-        initial_value=ZERO_FUNCTION,
+        initial_value=ZERO_FUNCTION(FILTRATION),
         drift=ZERO_FUNCTION,
         volatility=lambda f: 2 * ONE_FUNCTION(f),
     )
@@ -136,7 +158,7 @@ def test_brownian_dependent_dynamics():
     "Should evaluate to X_t = B_t^2"
     numeric_forward_sde = NumericalForwardSDE(
         filtration=FILTRATION,
-        initial_value=ZERO_FUNCTION,
+        initial_value=ZERO_FUNCTION(FILTRATION),
         drift=ONE_FUNCTION,
         volatility=lambda f: 2 * f.brownian_process,
     )
@@ -156,7 +178,7 @@ def test_X_t_dependent_dynamics():
     """
     numeric_forward_sde = NumericalForwardSDE(
         filtration=FILTRATION,
-        initial_value=ONE_FUNCTION,
+        initial_value=ONE_FUNCTION(FILTRATION),
         drift=GBM_DRIFT,
         volatility=GBM_VOL,
     )
@@ -195,7 +217,7 @@ def test_OU_solution():
 
     numeric_forward_sde = NumericalForwardSDE(
         filtration=FILTRATION,
-        initial_value=ZERO_FUNCTION,
+        initial_value=ZERO_FUNCTION(FILTRATION),
         drift=lambda f: -K * f.forward_process,
         volatility=ONE_FUNCTION,
     )

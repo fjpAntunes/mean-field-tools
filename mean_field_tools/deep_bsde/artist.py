@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from typing import Callable
 import torch
 import numpy as np
@@ -166,6 +167,14 @@ class PicardIterationsArtist:
         self.analytical_forward_solution = analytical_forward_solution
         self.analytical_backward_volatility = analytical_backward_volatility
 
+        self.path_register = {
+            "x_hat": [],
+            "y_hat": [],
+            "z_hat": [],
+        }
+
+        self.color_map = mpl.colormaps["Blues"]
+
     def violin_plot(self, ax, time, errors, quantile_value):
         boundary = np.quantile(
             errors, [0.5 - quantile_value / 2, 0.5 + quantile_value / 2], axis=0
@@ -312,6 +321,51 @@ class PicardIterationsArtist:
         plt.savefig(path)
         plt.close()
 
+    def register_single_path(self):
+        x_hat = cast_to_np(self.filtration.forward_process)[0, :, :]
+        y_hat = cast_to_np(self.filtration.backward_process)[0, :, :]
+        z_hat = cast_to_np(self.filtration.backward_volatility)[0, :, :]
+        self.path_register["x_hat"].append(x_hat)
+        self.path_register["y_hat"].append(y_hat)
+        self.path_register["z_hat"].append(z_hat)
+
+    def plot_approximator_paths_along_iterations(self):
+        _, axs = plt.subplots(2, 1, layout="constrained")
+        t = cast_to_np(self.filtration.time_process)[0, :, :]
+
+        if self.analytical_forward_solution is not None:
+            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
+            axs[0].plot(t, x, color="r", label="Forward Process - Analytical")
+
+        if self.analytical_backward_solution is not None:
+            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
+            axs[1].plot(t, y, color="r", label="Backward Process - Analytical")
+
+        color_range = self.color_map(np.linspace(0, 1, self.iteration + 1))
+        for i in range(self.iteration):
+            x_hat = self.path_register["x_hat"][i]
+            y_hat = self.path_register["y_hat"][i]
+            axs[0].plot(
+                t,
+                x_hat,
+                color=color_range[i],
+                label=f"Forward Process - Iteration {i + 1}",
+            )
+            axs[1].plot(
+                t,
+                y_hat,
+                color=color_range[i],
+                label=f"Backward Process - Iteration {i + 1}",
+            )
+
+        for i in [0, 1]:
+            axs[i].legend()
+        path = f"./.figures/approximations_along_picard_iterations.png"
+
+        plt.savefig(path)
+
+        plt.close()
+
     def end_of_iteration_callback(self, fbsde, iteration):
         self.iteration = iteration
         self.fbsde = fbsde
@@ -319,4 +373,8 @@ class PicardIterationsArtist:
         self.plot_error_histogram()
         self.plot_picard_operator_error()
         self.plot_single_path()
+        self.register_single_path()
         self.plot_loss_along_iteration()
+
+    def end_of_solver_callback(self, fbsde):
+        self.plot_approximator_paths_along_iterations()
