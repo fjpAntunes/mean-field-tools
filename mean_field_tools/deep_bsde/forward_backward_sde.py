@@ -1,6 +1,7 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
 from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
 from typing import Callable, List
 
@@ -309,11 +310,13 @@ class ForwardBackwardSDE:
         filtration: Filtration,
         forward_sde: ForwardSDE,
         backward_sde: BackwardSDE,
+        measure_flow: MeasureFlow,
         damping: Callable[[int], float] = lambda i: 0,
     ):
         self.filtration = filtration
         self.forward_sde = forward_sde
         self.backward_sde = backward_sde
+        self.measure_flow = measure_flow
         self.damping = damping
         self.iteration = 0
 
@@ -342,6 +345,12 @@ class ForwardBackwardSDE:
             update=updated_forward_volatility,
         )
         self.filtration.forward_volatility = damped_update_forward_volatility
+
+    def _add_forward_mean_field_to_filtration(self):
+        updated_forward_mean_field = self.measure_flow.parameterize(
+            self.filtration.forward_process
+        )
+        self.filtration.forward_mean_field = updated_forward_mean_field
 
     def _add_backward_process_to_filtration(self):
         updated_backward_process = self.backward_sde.generate_backward_process()
@@ -391,6 +400,13 @@ class ForwardBackwardSDE:
         self.filtration.backward_process = backward_process
         self.filtration.backward_volatility = backward_volatility
 
+    def _update_states(self):
+        self._add_backward_process_to_filtration()
+        self._add_backward_volatility_to_filtration()
+        self._add_forward_process_to_filtration()
+        self._add_forward_volatility_to_filtration()
+        self._add_forward_mean_field_to_filtration()
+
     def backward_solve(
         self,
         number_of_iterations: int,
@@ -421,10 +437,7 @@ class ForwardBackwardSDE:
         for i in range(number_of_iterations):
             self.iteration = i
             self._single_picard_step(approximator_args)
-            self._add_backward_process_to_filtration()
-            self._add_backward_volatility_to_filtration()
-            self._add_forward_process_to_filtration()
-            self._add_forward_volatility_to_filtration()
+            self._update_states()
             if plotter is not None:
                 plotter.end_of_iteration_callback(fbsde=self, iteration=i)
         if plotter is not None:
