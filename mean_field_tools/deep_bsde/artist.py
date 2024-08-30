@@ -333,14 +333,6 @@ class PicardIterationsArtist:
         _, axs = plt.subplots(2, 1, layout="constrained")
         t = cast_to_np(self.filtration.time_process)[0, :, :]
 
-        if self.analytical_forward_solution is not None:
-            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
-            axs[0].plot(t, x, color="r", label="Forward Process - Analytical")
-
-        if self.analytical_backward_solution is not None:
-            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
-            axs[1].plot(t, y, color="r", label="Backward Process - Analytical")
-
         color_range = self.color_map(np.linspace(0, 1, self.iteration + 1))
         for i in range(self.iteration):
             x_hat = self.path_register["x_hat"][i]
@@ -349,18 +341,88 @@ class PicardIterationsArtist:
                 t,
                 x_hat,
                 color=color_range[i],
-                label=f"Forward Process - Iteration {i + 1}",
+                # label=f"Forward Process - Iteration {i + 1}",
             )
             axs[1].plot(
                 t,
                 y_hat,
                 color=color_range[i],
-                label=f"Backward Process - Iteration {i + 1}",
+                # label=f"Backward Process - Iteration {i + 1}",
+            )
+
+        if self.analytical_forward_solution is not None:
+            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
+            axs[0].plot(
+                t,
+                x,
+                color="r",
+                linestyle="dashed",
+                label="Forward Process - Analytical",
+            )
+
+        if self.analytical_backward_solution is not None:
+            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
+            axs[1].plot(
+                t,
+                y,
+                color="r",
+                linestyle="dashed",
+                label="Backward Process - Analytical",
             )
 
         for i in [0, 1]:
             axs[i].legend()
         path = f"./.figures/approximations_along_picard_iterations.png"
+
+        plt.savefig(path)
+
+        plt.close()
+
+    def plot_population_measure_flow(self):
+        _, axs = plt.subplots(1, 1, layout="constrained", figsize=(12, 6))
+        t = cast_to_np(self.filtration.time_process)[0, :, :].reshape(-1)
+
+        hat_X = cast_to_np(self.filtration.forward_process)
+        positive_quantiles = [0.99, 0.95, 0.9, 0.75]
+        negative_quantiles = [0.01, 0.05, 0.1, 0.25]
+        alphas = [0.1, 0.2, 0.3, 0.4]
+        for i in range(4):
+            lower_bound = np.quantile(hat_X, negative_quantiles[i], axis=0).reshape(-1)
+            upper_bound = np.quantile(hat_X, positive_quantiles[i], axis=0).reshape(-1)
+            axs.fill_between(t, lower_bound, upper_bound, color="r", alpha=alphas[i])
+
+        num_paths = 50
+        colormap = mpl.colormaps["Blues"]
+        colors = colormap(np.linspace(0.5, 1, num_paths))
+        for i in range(num_paths):
+            axs.plot(t, hat_X[i, :, 0].reshape(-1), color=colors[i], alpha=0.9)
+
+        mean = np.mean(hat_X, axis=0).reshape(-1)
+        axs.plot(t, mean, color="orange")
+
+        """    
+        if self.analytical_forward_solution is not None:
+            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
+            axs[0].plot(
+                t,
+                x,
+                color="r",
+                linestyle="dashed",
+                label="Forward Process - Analytical",
+            )
+
+        if self.analytical_backward_solution is not None:
+            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
+            axs[1].plot(
+                t,
+                y,
+                color="r",
+                linestyle="dashed",
+                label="Backward Process - Analytical",
+            )
+        """
+
+        path = f"./.figures/population_measure_flow.png"
 
         plt.savefig(path)
 
@@ -378,3 +440,4 @@ class PicardIterationsArtist:
 
     def end_of_solver_callback(self, fbsde):
         self.plot_approximator_paths_along_iterations()
+        self.plot_population_measure_flow()
