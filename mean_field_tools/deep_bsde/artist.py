@@ -333,14 +333,6 @@ class PicardIterationsArtist:
         _, axs = plt.subplots(2, 1, layout="constrained")
         t = cast_to_np(self.filtration.time_process)[0, :, :]
 
-        if self.analytical_forward_solution is not None:
-            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
-            axs[0].plot(t, x, color="r", label="Forward Process - Analytical")
-
-        if self.analytical_backward_solution is not None:
-            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
-            axs[1].plot(t, y, color="r", label="Backward Process - Analytical")
-
         color_range = self.color_map(np.linspace(0, 1, self.iteration + 1))
         for i in range(self.iteration):
             x_hat = self.path_register["x_hat"][i]
@@ -349,13 +341,33 @@ class PicardIterationsArtist:
                 t,
                 x_hat,
                 color=color_range[i],
-                label=f"Forward Process - Iteration {i + 1}",
+                # label=f"Forward Process - Iteration {i + 1}",
             )
             axs[1].plot(
                 t,
                 y_hat,
                 color=color_range[i],
-                label=f"Backward Process - Iteration {i + 1}",
+                # label=f"Backward Process - Iteration {i + 1}",
+            )
+
+        if self.analytical_forward_solution is not None:
+            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
+            axs[0].plot(
+                t,
+                x,
+                color="r",
+                linestyle="dashed",
+                label="Forward Process - Analytical",
+            )
+
+        if self.analytical_backward_solution is not None:
+            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
+            axs[1].plot(
+                t,
+                y,
+                color="r",
+                linestyle="dashed",
+                label="Backward Process - Analytical",
             )
 
         for i in [0, 1]:
