@@ -148,7 +148,7 @@ class BackwardSDE:
             terminal_condition_function (Callable[[Filtration], torch.Tensor]): Terminal condition $\xi$ for the BSDE. Should be a function of the filtration.
             filtration (Filtration): Filtration object that holds the state of the processes in a time structured manner.
             exogenous_process (list, optional): Processes on which the BSDE depends.
-              possible processes are "time_process", "brownian_process", "forward_process".
+              possible processes are "time_process", "brownian_process", "forward_process","forward_mean_field".
               Defaults to ["time_process", "brownian_process"].
             drift (DriftType, optional): Drift function $f$ for the BSDE. Note the sign convention. Defaults to zero_drift.
         """
@@ -163,9 +163,10 @@ class BackwardSDE:
                 "time_process",
                 "brownian_process",
                 "forward_process",
+                "forward_mean_field",
             ]:
                 raise ValueError(
-                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process"'
+                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process", "forward_mean_field"'
                 )
 
         self.exogenous_process = exogenous_process_list
@@ -310,7 +311,7 @@ class ForwardBackwardSDE:
         filtration: Filtration,
         forward_sde: ForwardSDE,
         backward_sde: BackwardSDE,
-        measure_flow: MeasureFlow,
+        measure_flow: MeasureFlow = None,
         damping: Callable[[int], float] = lambda i: 0,
     ):
         self.filtration = filtration
@@ -347,10 +348,11 @@ class ForwardBackwardSDE:
         self.filtration.forward_volatility = damped_update_forward_volatility
 
     def _add_forward_mean_field_to_filtration(self):
-        updated_forward_mean_field = self.measure_flow.parameterize(
-            self.filtration.forward_process
-        )
-        self.filtration.forward_mean_field = updated_forward_mean_field
+        if self.measure_flow is not None:
+            updated_forward_mean_field = self.measure_flow.parameterize(
+                self.filtration.forward_process
+            )
+            self.filtration.forward_mean_field = updated_forward_mean_field
 
     def _add_backward_process_to_filtration(self):
         updated_backward_process = self.backward_sde.generate_backward_process()
@@ -395,6 +397,7 @@ class ForwardBackwardSDE:
             )
         else:
             self.filtration.forward_volatility = forward_volatility
+        self._add_forward_mean_field_to_filtration()
 
     def _initialize_backward_process(self, backward_process, backward_volatility):
         self.filtration.backward_process = backward_process
