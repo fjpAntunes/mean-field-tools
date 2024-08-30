@@ -2,13 +2,14 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     Filtration,
     BackwardSDE,
     NumericalForwardSDE,
-    AnalyticForwardSDE,
     ForwardBackwardSDE,
 )
 from mean_field_tools.deep_bsde.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
 )
+
+from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 import torch
 import numpy as np
 
@@ -28,28 +29,16 @@ FILTRATION = Filtration(
     seed=0,
 )
 
-
 "Forward SDE definition"
 
+XI = torch.distributions.normal.Normal(loc=1, scale=2).sample(
+    sample_shape=(NUMBER_OF_PATHS, 1, SPATIAL_DIMENSIONS)
+)
+
+
 Q = 1
-TAU = 1
 SIGMA = 1
-
-
-def analytical_X(filtration: Filtration):
-    t = filtration.time_process
-    T = t[:, -1].unsqueeze(-1)
-
-    first_term = -TAU * t / (1 + Q * T)
-    dummy_time = filtration.time_process
-    integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
-    initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))
-
-    dB_u = filtration.brownian_increments
-    integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
-    second_term = SIGMA * (1 + Q * (T - t)) * integral_term
-
-    return first_term + second_term
+TAU = -float(torch.mean(XI, dim=0))
 
 
 def ZERO_FUNCTION(filtration: Filtration):
@@ -69,10 +58,11 @@ def VOLATILITY(filtration: Filtration):
     return SIGMA * one
 
 
-forward_sde = AnalyticForwardSDE(
+forward_sde = NumericalForwardSDE(
     filtration=FILTRATION,
-    functional_form=analytical_X,
-    volatility_functional_form=VOLATILITY,
+    initial_value=XI,
+    drift=DRIFT,
+    volatility=VOLATILITY,
 )
 
 "Backward SDE definition"
@@ -80,14 +70,15 @@ forward_sde = AnalyticForwardSDE(
 
 def TERMINAL_CONDITION(filtration: Filtration):
     X_T = filtration.forward_process[:, -1, :]
-
-    return Q * X_T + TAU
+    mu_T = torch.mean(X_T, dim=0)
+    value = Q * X_T - mu_T
+    return value
 
 
 backward_sde = BackwardSDE(
     terminal_condition_function=TERMINAL_CONDITION,
     filtration=FILTRATION,
-    exogenous_process=["time_process", "forward_process"],
+    exogenous_process=["time_process", "forward_process", "forward_mean_field"],
     drift=ZERO_FUNCTION,
 )
 backward_sde.initialize_approximator(
@@ -99,8 +90,14 @@ backward_sde.initialize_approximator(
 
 "FBSDE definition"
 
+measure_flow = MeasureFlow(filtration=FILTRATION)
+
 forward_backward_sde = ForwardBackwardSDE(
-    filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde
+    filtration=FILTRATION,
+    forward_sde=forward_sde,
+    backward_sde=backward_sde,
+    damping=lambda i: i / (1 + i),
+    measure_flow=measure_flow,
 )
 
 
@@ -128,18 +125,36 @@ PICARD_ITERATION_ARGS = {
 "Solving"
 
 
-def analytical_Y(filtration: Filtration):
-    X_t = filtration.forward_process
-    t = filtration.time_process
-    T = t[:, -1].unsqueeze(-1)
-    return (Q * X_t + TAU) / (1 + Q * (T - t))
-
-
 def analytical_Z(filtration: Filtration):
     t = filtration.time_process
     T = t[:, -1].unsqueeze(-1)
 
     return (Q / (1 + Q * (T - t))) * SIGMA
+
+
+def analytical_X(filtration: Filtration):
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+
+    initial_conidtion_term = XI * (1 + Q * (T - t)) / (1 + Q * T)
+
+    first_term = -TAU * t / (1 + Q * T)
+    dummy_time = filtration.time_process
+    integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
+    initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))
+
+    dB_u = filtration.brownian_increments
+    integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
+    second_term = SIGMA * (1 + Q * (T - t)) * integral_term
+
+    return initial_conidtion_term + first_term + second_term
+
+
+def analytical_Y(filtration: Filtration):
+    X_t = analytical_X(filtration=filtration)
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+    return (Q * X_t + TAU) / (1 + Q * (T - t))
 
 
 iterations_artist = PicardIterationsArtist(
