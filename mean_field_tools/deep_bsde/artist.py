@@ -211,6 +211,8 @@ class PicardIterationsArtist:
         return error_y, error_z
 
     def plot_error_along_time(self):
+        if self.analytical_backward_solution is None:
+            return
         _, axs = plt.subplots(4, 1, figsize=(12, 16))
 
         error_y, error_z = self.calculate_errors()
@@ -245,6 +247,8 @@ class PicardIterationsArtist:
         plt.close()
 
     def plot_error_histogram(self):
+        if self.analytical_backward_solution is None:
+            return
         _, axs = plt.subplots(2, 1, figsize=(4, 8), layout="constrained")
 
         error_y, error_z = self.calculate_errors()
