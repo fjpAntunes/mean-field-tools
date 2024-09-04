@@ -80,7 +80,7 @@ def BACKWARD_DRIFT(filtration: Filtration):
     m_t = torch.mean(X_t, dim=0)
     Y_t = filtration.backward_process
     value = (a + q) * Y_t + (epsilon - q**2) * (m_t - X_t)
-    return value
+    return -value
 
 
 def TERMINAL_CONDITION(filtration: Filtration):
@@ -117,15 +117,81 @@ forward_backward_sde = ForwardBackwardSDE(
 )
 
 
-# def ANALYTIC_SOLUTION(X_t, t, T):
-#    return (Q / (1 + Q * (T - t))) * X_t + TAU / (1 + Q * (T - t))
+"Plotting Parameters"
 
 
-"Solver parameters"
+def niu_function(t, T, module=np):
+    delta_plus = -(a + q) + ((a + q) ** 2 + (epsilon - q**2)) ** 0.5
+    delta_minus = -(a + q) - ((a + q) ** 2 + (epsilon - q**2)) ** 0.5
+    exp = module.exp((delta_plus - delta_minus) * (T - t))
+
+    A = exp - 1
+    B_plus = delta_plus * exp - delta_minus
+    B_minus = delta_minus * exp - delta_plus
+
+    niu = (-(epsilon - q**2) * A - c * B_plus) / (B_minus - c * A)
+    return niu
+
+
+def analytic_Y_as_function_of_X(X_t, t, T, module=np):
+    niu = niu_function(t, T, module)
+    m_t = module.mean(X_t)
+    Y_t = -niu * (m_t - X_t)
+    return Y_t
+
+
+def analytical_X(filtration: Filtration):
+    X_t = filtration.forward_process
+    m_t = torch.mean(filtration.forward_process, dim=0)
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+    niu = niu_function(t, T, module=torch)
+
+    theta = a + q + niu
+
+    dummy_time = filtration.time_process[:, 1:, 0].unsqueeze(-1)
+    integrand = (
+        torch.exp(theta[:, :-1, :] * dummy_time) * filtration.brownian_increments
+    )
+
+    initial = torch.zeros(
+        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
+    )
+    integral = torch.cat([initial, torch.cumsum(integrand, dim=1)], dim=1)
+
+    ito_integral = torch.exp(-theta * t) * integral
+
+    value = m_t + (XI - m_t) * torch.exp(-theta * t) + SIGMA * ito_integral
+    return value
+
+
+def analytical_Y(filtration: Filtration):
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+    X_t = filtration.forward_process
+    m_t = torch.mean(X_t, dim=0)
+    niu = niu_function(t, T, module=torch)
+    Y_t = -niu * (m_t - X_t)
+
+    return Y_t
+
+
+def analytical_Z(filtration: Filtration):
+    t = filtration.time_process
+    T = t[:, -1].unsqueeze(-1)
+    niu = niu_function(t, T, module=torch)
+    return niu
+
 
 artist = FunctionApproximatorArtist(
-    save_figures=True,
-    # analytical_solution=ANALYTIC_SOLUTION
+    save_figures=True, analytical_solution=analytic_Y_as_function_of_X
+)
+
+iterations_artist = PicardIterationsArtist(
+    FILTRATION,
+    analytical_forward_solution=analytical_X,
+    analytical_backward_solution=analytical_Y,
+    analytical_backward_volatility=analytical_Z,
 )
 
 PICARD_ITERATION_ARGS = {
@@ -140,46 +206,6 @@ PICARD_ITERATION_ARGS = {
 
 
 "Solving"
-
-
-# def analytical_Z(filtration: Filtration):
-#    t = filtration.time_process
-#    T = t[:, -1].unsqueeze(-1)
-#
-#    return (Q / (1 + Q * (T - t))) * SIGMA
-#
-#
-# def analytical_X(filtration: Filtration):
-#    t = filtration.time_process
-#    T = t[:, -1].unsqueeze(-1)
-#
-#    initial_conidtion_term = XI * (1 + Q * (T - t)) / (1 + Q * T)
-#
-#    first_term = -TAU * t / (1 + Q * T)
-#    dummy_time = filtration.time_process
-#    integrand = (1 / (1 + Q * (T - dummy_time)))[:, :-1, :]
-#    initial = torch.zeros_like(t[:, 0, :].unsqueeze(1))
-#
-#    dB_u = filtration.brownian_increments
-#    integral_term = torch.cat([initial, torch.cumsum(integrand * dB_u, axis=1)], dim=1)
-#    second_term = SIGMA * (1 + Q * (T - t)) * integral_term
-#
-#    return initial_conidtion_term + first_term + second_term
-#
-#
-# def analytical_Y(filtration: Filtration):
-#    X_t = analytical_X(filtration=filtration)
-#    t = filtration.time_process
-#    T = t[:, -1].unsqueeze(-1)
-#    return (Q * X_t + TAU) / (1 + Q * (T - t))
-#
-
-iterations_artist = PicardIterationsArtist(
-    FILTRATION,
-    # analytical_backward_solution=analytical_Y,
-    # analytical_backward_volatility=analytical_Z,
-    # analytical_forward_solution=analytical_X,
-)
 
 forward_backward_sde.backward_solve(
     number_of_iterations=10,

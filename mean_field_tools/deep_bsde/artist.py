@@ -154,6 +154,7 @@ class FunctionApproximatorArtist:
 
 
 class PicardIterationsArtist:
+
     def __init__(
         self,
         filtration: Filtration,
@@ -198,14 +199,16 @@ class PicardIterationsArtist:
         )
 
     def calculate_errors(self):
-        y = self.analytical_backward_solution(self.filtration)
-        y_hat = self.filtration.backward_process
-        error_y = y_hat - y
+        if self.analytical_backward_solution is not None:
+            y = self.analytical_backward_solution(self.filtration)
+            y_hat = self.filtration.backward_process
+            error_y = y_hat - y
         error_y = cast_to_np(error_y)[:, :, 0]
 
-        z = self.analytical_backward_volatility(self.filtration)
-        z_hat = self.filtration.backward_volatility
-        error_z = z_hat - z
+        if self.analytical_backward_volatility is not None:
+            z = self.analytical_backward_volatility(self.filtration)
+            z_hat = self.filtration.backward_volatility
+            error_z = z_hat - z
         error_z = cast_to_np(error_z)[:, :, 0]
 
         return error_y, error_z
@@ -395,7 +398,7 @@ class PicardIterationsArtist:
             upper_bound = np.quantile(hat_X, positive_quantiles[i], axis=0).reshape(-1)
             axs.fill_between(t, lower_bound, upper_bound, color="r", alpha=alphas[i])
 
-        num_paths = 50
+        num_paths = 20
         colormap = mpl.colormaps["Blues"]
         colors = colormap(np.linspace(0.5, 1, num_paths))
         for i in range(num_paths):
@@ -403,28 +406,6 @@ class PicardIterationsArtist:
 
         mean = np.mean(hat_X, axis=0).reshape(-1)
         axs.plot(t, mean, color="orange")
-
-        """    
-        if self.analytical_forward_solution is not None:
-            x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
-            axs[0].plot(
-                t,
-                x,
-                color="r",
-                linestyle="dashed",
-                label="Forward Process - Analytical",
-            )
-
-        if self.analytical_backward_solution is not None:
-            y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
-            axs[1].plot(
-                t,
-                y,
-                color="r",
-                linestyle="dashed",
-                label="Backward Process - Analytical",
-            )
-        """
 
         path = f"./.figures/population_measure_flow.png"
 
