@@ -199,26 +199,66 @@ class PicardIterationsArtist:
         )
 
     def calculate_errors(self):
+        if self.analytical_forward_solution is not None:
+            x = self.analytical_forward_solution(self.filtration)
+            x_hat = self.filtration.forward_process
+            error_x = x_hat - x
+            error_x = cast_to_np(error_x)[:, :, 0]
+
         if self.analytical_backward_solution is not None:
             y = self.analytical_backward_solution(self.filtration)
             y_hat = self.filtration.backward_process
             error_y = y_hat - y
-        error_y = cast_to_np(error_y)[:, :, 0]
+            error_y = cast_to_np(error_y)[:, :, 0]
 
         if self.analytical_backward_volatility is not None:
             z = self.analytical_backward_volatility(self.filtration)
             z_hat = self.filtration.backward_volatility
             error_z = z_hat - z
-        error_z = cast_to_np(error_z)[:, :, 0]
+            error_z = cast_to_np(error_z)[:, :, 0]
 
-        return error_y, error_z
+        return error_x, error_y, error_z
 
-    def plot_error_along_time(self):
+    def plot_error_quantiles_along_time(self):
         if self.analytical_backward_solution is None:
             return
-        _, axs = plt.subplots(4, 1, figsize=(12, 16))
+        _, axs = plt.subplots(3, 1, figsize=(12, 16))
 
-        error_y, error_z = self.calculate_errors()
+        error_x, error_y, error_z = self.calculate_errors()
+
+        t = cast_to_np(self.filtration.time_domain)
+
+        quantile_values = [0.5, 0.8, 0.95]
+        for value in quantile_values:
+
+            # Violin plot
+            self.violin_plot(axs[0], t, error_x, value)
+            self.violin_plot(axs[1], t, error_y, value)
+            self.violin_plot(axs[2], t, error_z, value)
+
+        for i in range(3):
+            axs[i].legend()
+            axs[i].grid(True)
+        axs[0].set_title(
+            f"Quantile of errors along time - Iteration {self.iteration + 1}"
+        )
+        axs[0].set_ylabel(r"$(\hat X - X)$")
+        axs[1].set_ylabel(r"$(\hat Y - Y)$")
+        axs[2].set_ylabel(r"$(\hat Z - Z)$")
+        axs[2].set_xlabel("Time")
+        plt.savefig(
+            f"./.figures/error_quantiles_along_time_iteration_{self.iteration+1}.png"
+        )
+        plt.close()
+
+    def plot_quadratic_error_quantiles_along_time(self):
+        if self.analytical_backward_solution is None:
+            return
+        _, axs = plt.subplots(3, 1, figsize=(12, 16))
+
+        error_x, error_y, error_z = self.calculate_errors()
+
+        quadratic_error_x = error_x**2
         quadratic_error_y = error_y**2
         quadratic_error_z = error_z**2
 
@@ -227,45 +267,45 @@ class PicardIterationsArtist:
         quantile_values = [0.5, 0.9, 0.95]
         for value in quantile_values:
 
-            # Violin plot
-            self.violin_plot(axs[0], t, error_y, value)
-            self.violin_plot(axs[2], t, error_z, value)
-
             # squared errors along time
+            self.quantiles_along_time(axs[0], t, quadratic_error_x, value)
             self.quantiles_along_time(axs[1], t, quadratic_error_y, value)
-            self.quantiles_along_time(axs[3], t, quadratic_error_z, value)
+            self.quantiles_along_time(axs[2], t, quadratic_error_z, value)
 
-        for i in range(4):
+        for i in range(3):
             axs[i].legend()
             axs[i].grid(True)
         axs[0].set_title(
-            f"Quantile of errors along time - Iteration {self.iteration + 1}"
+            f"Quantile of quadratic errors along time - Iteration {self.iteration + 1}"
         )
-        axs[0].set_ylabel(r"$(\hat Y - Y)$")
+        axs[0].set_ylabel(r"$(\hat X - X)^2$")
         axs[1].set_ylabel(r"$(\hat Y - Y)^2$")
-        axs[2].set_ylabel(r"$(\hat Z - Z)$")
-        axs[3].set_ylabel(r"$(\hat Z - Z)^2$")
-        axs[3].set_xlabel("Time")
-        plt.savefig(f"./.figures/error_quantiles_plot_{self.iteration}.png")
+        axs[2].set_ylabel(r"$(\hat Z - Z)^2$")
+        axs[2].set_xlabel("Time")
+        plt.savefig(
+            f"./.figures/quadratic_error_quantiles_iteration_{self.iteration + 1}.png"
+        )
         plt.close()
 
     def plot_error_histogram(self):
         if self.analytical_backward_solution is None:
             return
-        _, axs = plt.subplots(2, 1, figsize=(4, 8), layout="constrained")
+        _, axs = plt.subplots(3, 1, figsize=(4, 8), layout="constrained")
 
-        error_y, error_z = self.calculate_errors()
+        error_x, error_y, error_z = self.calculate_errors()
         n_bins = 50
-        axs[0].hist(error_y.reshape(-1), bins=n_bins, density=True)
-        axs[1].hist(error_z.reshape(-1), bins=n_bins, density=True)
+        axs[0].hist(error_x.reshape(-1), bins=n_bins, density=True)
+        axs[1].hist(error_y.reshape(-1), bins=n_bins, density=True)
+        axs[2].hist(error_z.reshape(-1), bins=n_bins, density=True)
 
         for i in range(2):
             axs[i].grid(True)
             # axs[i].set_xlim(-1, 1)
 
-        axs[0].set_ylabel(r"$(\hat Y - Y)$")
-        axs[1].set_ylabel(r"$(\hat Z - Z)$")
-        plt.savefig(f"./.figures/error_histogram_{self.iteration}.png")
+        axs[0].set_ylabel(r"$(\hat X - X)$")
+        axs[1].set_ylabel(r"$(\hat Y - Y)$")
+        axs[2].set_ylabel(r"$(\hat Z - Z)$")
+        plt.savefig(f"./.figures/error_histogram_iteration_{self.iteration + 1}.png")
         plt.close()
 
     def plot_picard_operator_error(self):
@@ -396,18 +436,26 @@ class PicardIterationsArtist:
         for i in range(4):
             lower_bound = np.quantile(hat_X, negative_quantiles[i], axis=0).reshape(-1)
             upper_bound = np.quantile(hat_X, positive_quantiles[i], axis=0).reshape(-1)
-            axs.fill_between(t, lower_bound, upper_bound, color="r", alpha=alphas[i])
+            percentage = positive_quantiles[i] - negative_quantiles[i]
+            axs.fill_between(
+                t,
+                lower_bound,
+                upper_bound,
+                color="r",
+                alpha=alphas[i],
+                label=f"{percentage:.0%} of agents",
+            )
 
-        num_paths = 20
+        num_paths = 0
         colormap = mpl.colormaps["Blues"]
         colors = colormap(np.linspace(0.5, 1, num_paths))
         for i in range(num_paths):
             axs.plot(t, hat_X[i, :, 0].reshape(-1), color=colors[i], alpha=0.9)
 
         mean = np.mean(hat_X, axis=0).reshape(-1)
-        axs.plot(t, mean, color="orange")
-
-        path = f"./.figures/population_measure_flow.png"
+        axs.plot(t, mean, color="orange", label="Agents mean")
+        axs.legend()
+        path = f"./.figures/population_measure_flow_iteration_{self.iteration + 1}.png"
 
         plt.savefig(path)
 
@@ -416,13 +464,13 @@ class PicardIterationsArtist:
     def end_of_iteration_callback(self, fbsde, iteration):
         self.iteration = iteration
         self.fbsde = fbsde
-        self.plot_error_along_time()
+        self.plot_error_quantiles_along_time()
         self.plot_error_histogram()
         self.plot_picard_operator_error()
         self.plot_single_path()
         self.register_single_path()
         self.plot_loss_along_iteration()
+        self.plot_population_measure_flow()
 
     def end_of_solver_callback(self, fbsde):
         self.plot_approximator_paths_along_iterations()
-        self.plot_population_measure_flow()

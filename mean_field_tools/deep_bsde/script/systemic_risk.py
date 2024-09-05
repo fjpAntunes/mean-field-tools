@@ -112,7 +112,7 @@ forward_backward_sde = ForwardBackwardSDE(
     filtration=FILTRATION,
     forward_sde=forward_sde,
     backward_sde=backward_sde,
-    damping=lambda i: i / (1 + i),
+    damping=lambda i: 0.5,
     measure_flow=measure_flow,
 )
 
@@ -208,7 +208,7 @@ PICARD_ITERATION_ARGS = {
 "Solving"
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=10,
+    number_of_iterations=30,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
