@@ -70,6 +70,7 @@ forward_sde = NumericalForwardSDE(
     initial_value=XI,
     drift=FORWARD_DRIFT,
     volatility=VOLATILITY,
+    tolerance=1e-6,
 )
 
 "Backward SDE definition"
@@ -149,7 +150,7 @@ def analytical_X(filtration: Filtration):
 
     theta = a + q + niu
 
-    dummy_time = filtration.time_process[:, 1:, 0].unsqueeze(-1)
+    dummy_time = filtration.time_process[:, :-1, 0].unsqueeze(-1)
     integrand = (
         torch.exp(theta[:, :-1, :] * dummy_time) * filtration.brownian_increments
     )
