@@ -42,11 +42,13 @@ class NumericalForwardSDE(ForwardSDE):
         initial_value: filtrationMeasurableFunction,
         drift: filtrationMeasurableFunction,
         volatility: filtrationMeasurableFunction,
+        tolerance: float = 1e-4,
     ):
         self.filtration = filtration
         self.initial_value = initial_value
         self.drift = drift
         self.volatility = volatility
+        self.tolerance = tolerance
 
     def _initial_integral_term(self):
         initial = torch.zeros_like(self.filtration.time_process[:, 0, :]).unsqueeze(1)
@@ -69,12 +71,12 @@ class NumericalForwardSDE(ForwardSDE):
 
         return ito_integral
 
-    def solve(self, tolerance: float = 1e-4):
+    def solve(self):
         if self.filtration.forward_process is None:
             self.filtration.forward_process = self.filtration.time_process
 
         delta = 1
-        while delta > tolerance:
+        while delta > self.tolerance:
             paths = self.generate_paths()
             deviation = paths - self.filtration.forward_process
             delta = torch.mean(deviation**2) + deviation.var()
