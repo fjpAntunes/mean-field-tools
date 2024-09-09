@@ -6,6 +6,7 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardBackwardSDE,
 )
 from mean_field_tools.deep_bsde.artist import (
+    cast_to_np,
     FunctionApproximatorArtist,
     PicardIterationsArtist,
 )
@@ -31,10 +32,21 @@ FILTRATION = Filtration(
 "Forward SDE definition"
 
 
-def analytical_X(filtration: Filtration):
-    t = filtration.time_process
+K = 1
 
-    return
+
+def OU_FUNCTIONAL_FORM(filtration):
+    dummy_time = filtration.time_process[:, 1:, 0].unsqueeze(-1)
+    integrand = torch.exp(K * dummy_time) * filtration.brownian_increments
+
+    initial = torch.zeros(
+        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
+    )
+    integral = torch.cat([initial, torch.cumsum(integrand, dim=1)], dim=1)
+
+    time = filtration.time_process[:, :, 0].unsqueeze(-1)
+    path = torch.exp(-K * time) * integral
+    return path
 
 
 def ZERO_FUNCTION(filtration: Filtration):
@@ -49,31 +61,52 @@ def ONE_FUNCTION(filtration: Filtration):
     return one
 
 
-def DRIFT(filtration: Filtration):
-    Y_t = filtration.backward_process
-
-    return -Y_t
-
-
-VOL = 3
-
-
-def VOLATILITY(filtration: Filtration):
-    one = torch.ones_like(filtration.time_process)
-    return VOL * one
-
-
 analytic_forward_sde = AnalyticForwardSDE(
     filtration=FILTRATION,
-    functional_form=analytical_X,
-    volatility_functional_form=VOLATILITY,
+    functional_form=OU_FUNCTIONAL_FORM,
 )
 
 numeric_forward_sde = NumericalForwardSDE(
     filtration=FILTRATION,
-    initial_value=ZERO_FUNCTION,
-    drift=ONE_FUNCTION,
-    volatility=VOLATILITY,
+    initial_value=ZERO_FUNCTION(FILTRATION),
+    drift=lambda f: -K * f.forward_process,
+    volatility=ONE_FUNCTION,
+    tolerance=1e-6,
 )
 
+FILTRATION.forward_process = FILTRATION.time_process
+
+numeric_forward_sde.solve()
+
 paths = numeric_forward_sde.generate_paths()
+
+analytic = OU_FUNCTIONAL_FORM(FILTRATION)
+
+artist = PicardIterationsArtist(
+    filtration=FILTRATION, analytical_forward_solution=OU_FUNCTIONAL_FORM
+)
+
+
+error_x, _, _ = artist.calculate_errors()
+
+
+t = cast_to_np(FILTRATION.time_domain)
+
+import matplotlib.pyplot as plt
+
+_, axs = plt.subplots(1, 1, figsize=(12, 5))
+
+
+quantile_values = [0.5, 0.8, 0.95]
+for value in quantile_values:
+
+    # Violin plot
+    artist.violin_plot(axs, t, error_x, value)
+
+axs.legend()
+axs.grid(True)
+axs.set_title(f"Quantile of errors along time")
+axs.set_ylabel(r"$(\hat X - X)$")
+axs.set_xlabel("Time")
+plt.savefig(f"./.figures/error_quantiles_along_time_forward_picard.png")
+plt.close()

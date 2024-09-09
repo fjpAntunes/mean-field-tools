@@ -209,7 +209,7 @@ PICARD_ITERATION_ARGS = {
 "Solving"
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=30,
+    number_of_iterations=10,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )

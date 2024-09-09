@@ -42,7 +42,7 @@ class NumericalForwardSDE(ForwardSDE):
         initial_value: filtrationMeasurableFunction,
         drift: filtrationMeasurableFunction,
         volatility: filtrationMeasurableFunction,
-        tolerance: float = 1e-4,
+        tolerance: float = 1e-6,
     ):
         self.filtration = filtration
         self.initial_value = initial_value

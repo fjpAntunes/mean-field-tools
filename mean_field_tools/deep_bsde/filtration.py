@@ -69,11 +69,11 @@ class Filtration:
     def __init__(
         self,
         spatial_dimensions: int,
-        time_domain,  # torch.linspace like
-        number_of_paths,
+        time_domain: torch.Tensor,  # torch.linspace like
+        number_of_paths: int,
         seed=None,
     ):
-        brownian_increment_generator = BrownianIncrementGenerator(
+        self.brownian_increment_generator = BrownianIncrementGenerator(
             number_of_paths=number_of_paths,
             spatial_dimensions=spatial_dimensions,
             sampling_times=time_domain,
@@ -84,7 +84,7 @@ class Filtration:
         self.dt = time_domain[1] - time_domain[0]
         self.number_of_paths = number_of_paths
 
-        self.brownian_increments = brownian_increment_generator()
+        self.brownian_increments = self.brownian_increment_generator()
 
         self.brownian_process = self._generate_brownian_process(
             self.brownian_increments
@@ -129,3 +129,39 @@ class Filtration:
         out = torch.cat(processes, dim=2)
 
         return out
+
+
+class CommonNoiseFiltration(Filtration):
+    "This class register the state of the system in a time-wise manner subject to a common noise"
+
+    def __init__(
+        self,
+        spatial_dimensions: int,
+        time_domain: torch.Tensor,
+        number_of_paths: int,
+        common_noise_coefficient: float,
+        seed=None,
+    ):
+        super().__init__(spatial_dimensions, time_domain, number_of_paths, seed)
+
+        self.common_noise_coefficient = common_noise_coefficient
+
+        self.common_noise_increments = self.brownian_increment_generator()
+        self.common_noise = self._generate_brownian_process(
+            self.common_noise_increments
+        )
+
+        self.idiosyncratic_noise_increments = self.brownian_increment_generator()
+        self.idiosyncratic_noise = self._generate_brownian_process(
+            self.idiosyncratic_noise_increments
+        )
+
+        self.brownian_increments = (
+            self.common_noise_coefficient * self.common_noise_increments
+            + (1 - self.common_noise_coefficient**2) ** 0.5
+            * self.idiosyncratic_noise_increments
+        )
+
+        self.brownian_process = self._generate_brownian_process(
+            self.brownian_increments
+        )

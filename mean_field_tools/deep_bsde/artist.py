@@ -199,6 +199,7 @@ class PicardIterationsArtist:
         )
 
     def calculate_errors(self):
+        error_x, error_y, error_z = (None, None, None)
         if self.analytical_forward_solution is not None:
             x = self.analytical_forward_solution(self.filtration)
             x_hat = self.filtration.forward_process
