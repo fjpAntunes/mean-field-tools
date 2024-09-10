@@ -52,6 +52,8 @@ class CommonNoiseMeasureFlow(MeasureFlow):
         self.filtration = filtration
 
     def initialize_approximator(self, nn_args: dict = {}, training_args={}):
+        self.nn_args = nn_args
+        self.training_args = training_args
 
         domain_dimensions = 1 + self.filtration.spatial_dimensions
         self.mean_approximator = FunctionApproximator(
@@ -59,7 +61,6 @@ class CommonNoiseMeasureFlow(MeasureFlow):
             output_dimension=self.filtration.spatial_dimensions,
             **nn_args,
         )
-        self.training_args = training_args
 
     def _set_elicitability_input(self) -> torch.Tensor:
         processes = [self.filtration.time_process, self.filtration.common_noise]

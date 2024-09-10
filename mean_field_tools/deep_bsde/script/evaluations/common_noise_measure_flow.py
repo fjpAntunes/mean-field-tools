@@ -25,9 +25,6 @@ FILTRATION = CommonNoiseFiltration(
 
 error = FILTRATION.brownian_process - FILTRATION.common_noise
 
-import pdb
-
-pdb.set_trace()
 
 measure_flow = CommonNoiseMeasureFlow(filtration=FILTRATION)
 measure_flow.initialize_approximator(
