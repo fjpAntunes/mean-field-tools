@@ -13,6 +13,7 @@ FILTRATION = CommonNoiseFiltration(
     time_domain=TIME_DOMAIN,
     number_of_paths=1000,
     common_noise_coefficient=0.3,
+    seed=0,
 )
 
 
@@ -120,3 +121,24 @@ def test_brownian_and_common_noise_covariance():
     analytical = rho * t
 
     assert tensors_are_close(covariance, analytical, tolerance=3e-1, norm=L_inf_norm)
+
+
+def test_common_noise_and_idiosyncratic_covariance():
+    "should evaluate to zero"
+    idiosyncratic = FILTRATION.idiosyncratic_noise
+    common_noise = FILTRATION.common_noise
+    t = TIME_DOMAIN
+
+    covariance = process_covariance(idiosyncratic, common_noise).squeeze(-1)
+
+    assert tensors_are_close(
+        covariance, torch.zeros_like(t), tolerance=3e-1, norm=L_inf_norm
+    )
+
+
+def test_independence_of_increments():
+    idiosyncratic = FILTRATION.idiosyncratic_noise_increments
+    common = FILTRATION.common_noise_increments
+    dt = FILTRATION.dt
+
+    assert torch.mean((common * idiosyncratic) / dt) < 5e-3

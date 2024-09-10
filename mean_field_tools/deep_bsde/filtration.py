@@ -144,21 +144,31 @@ class CommonNoiseFiltration(Filtration):
     ):
         super().__init__(spatial_dimensions, time_domain, number_of_paths, seed)
 
+        self.brownian_increment_generator = BrownianIncrementGenerator(
+            number_of_paths=number_of_paths,
+            spatial_dimensions=2 * spatial_dimensions,
+            sampling_times=time_domain,
+            seed=seed,
+        )
+
         self.common_noise_coefficient = common_noise_coefficient
 
-        self.common_noise_increments = self.brownian_increment_generator()
+        increments = self.brownian_increment_generator()
+
+        self.common_noise_increments = increments[:, :, :spatial_dimensions]
+        self.idiosyncratic_noise_increments = increments[:, :, spatial_dimensions:]
+
         self.common_noise = self._generate_brownian_process(
             self.common_noise_increments
         )
 
-        self.idiosyncratic_noise_increments = self.brownian_increment_generator()
         self.idiosyncratic_noise = self._generate_brownian_process(
             self.idiosyncratic_noise_increments
         )
 
         self.brownian_increments = (
             self.common_noise_coefficient * self.common_noise_increments
-            + (1 - self.common_noise_coefficient**2) ** 0.5
+            + ((1 - self.common_noise_coefficient**2) ** 0.5)
             * self.idiosyncratic_noise_increments
         )
 
