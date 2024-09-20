@@ -352,7 +352,7 @@ class ForwardBackwardSDE:
     def _add_forward_mean_field_to_filtration(self):
         if self.measure_flow is not None:
             updated_forward_mean_field = self.measure_flow.parameterize(
-                self.filtration.forward_process
+                self.filtration.forward_process.detach()
             )
             self.filtration.forward_mean_field = updated_forward_mean_field
 
