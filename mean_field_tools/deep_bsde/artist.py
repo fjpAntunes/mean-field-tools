@@ -177,7 +177,7 @@ class PicardIterationsArtist:
 
         self.color_map = mpl.colormaps["Blues"]
         self.errors = {"error_x": [], "error_y": [], "error_m": []}
-        self.error_plot_iterations = [1, 2, 3]
+        self.error_plot_iterations = [0, 1, 2]
         self.output_folder = output_folder
 
     def violin_plot(self, ax, time, errors, quantile_value):
@@ -563,6 +563,9 @@ class PicardIterationsArtist:
                 alpha=alphas[i],
             )
 
+        axs[0].set_xlim(-0.5, 0.5)
+        axs[1].set_xlim(-0.5, 0.5)
+        axs[2].set_xlim(-0.5, 0.5)
         for i in range(3):
             axs[i].grid(True)
 

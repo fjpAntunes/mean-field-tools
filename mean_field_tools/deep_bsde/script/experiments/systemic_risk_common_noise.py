@@ -272,7 +272,7 @@ PICARD_ITERATION_ARGS = {
 
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=20,
+    number_of_iterations=3,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
@@ -322,11 +322,12 @@ poster_artist = SystemicRiskCommonNoiseArtist(
     analytical_forward_solution=analytical_X,
     analytical_backward_solution=analytical_Y,
     analytical_backward_volatility=analytical_Z,
+    output_folder="./poster_plots",
 )
 poster_artist.plot_error_hist_for_iterations = lambda: None
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=20,
+    number_of_iterations=1,
     plotter=poster_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
