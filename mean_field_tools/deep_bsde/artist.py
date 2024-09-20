@@ -542,7 +542,7 @@ class PicardIterationsArtist:
                 self.errors["error_x"][i].reshape(-1),
                 bins=n_bins,
                 density=True,
-                label=f"Error histogram at iteration {iteration}",
+                label=f"Iteration {iteration}",
                 color="r",
                 alpha=alphas[i],
             )
@@ -550,7 +550,7 @@ class PicardIterationsArtist:
                 self.errors["error_y"][i].reshape(-1),
                 bins=n_bins,
                 density=True,
-                label=f"Error histogram at iteration {iteration}",
+                label=f"Iteration {iteration}",
                 color="r",
                 alpha=alphas[i],
             )
@@ -558,7 +558,7 @@ class PicardIterationsArtist:
                 self.errors["error_m"][i].reshape(-1),
                 bins=n_bins,
                 density=True,
-                label=f"Error histogram at iteration {iteration}",
+                label=f"Iteration {iteration}",
                 color="r",
                 alpha=alphas[i],
             )
