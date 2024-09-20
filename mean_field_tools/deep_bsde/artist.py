@@ -161,6 +161,7 @@ class PicardIterationsArtist:
         analytical_backward_solution: Callable[[Filtration], torch.Tensor] = None,
         analytical_backward_volatility: Callable[[Filtration], torch.Tensor] = None,
         analytical_forward_solution: Callable[[Filtration], torch.Tensor] = None,
+        output_folder: str = "./.figures",
     ):
         self.filtration = filtration
 
@@ -175,6 +176,9 @@ class PicardIterationsArtist:
         }
 
         self.color_map = mpl.colormaps["Blues"]
+        self.errors = {"error_x": [], "error_y": [], "error_m": []}
+        self.error_plot_iterations = [1, 2, 3]
+        self.output_folder = output_folder
 
     def violin_plot(self, ax, time, errors, quantile_value):
         boundary = np.quantile(
@@ -427,13 +431,14 @@ class PicardIterationsArtist:
         plt.close()
 
     def plot_population_measure_flow(self):
-        _, axs = plt.subplots(1, 1, layout="constrained", figsize=(12, 6))
+        _, axs = plt.subplots(1, 1, layout="constrained", figsize=(9, 6))
+
         t = cast_to_np(self.filtration.time_process)[0, :, :].reshape(-1)
 
         hat_X = cast_to_np(self.filtration.forward_process)
         positive_quantiles = [0.99, 0.95, 0.9, 0.75]
         negative_quantiles = [0.01, 0.05, 0.1, 0.25]
-        alphas = [0.1, 0.2, 0.3, 0.4]
+        alphas = [0.05, 0.1, 0.2, 0.3]
         for i in range(4):
             lower_bound = np.quantile(hat_X, negative_quantiles[i], axis=0).reshape(-1)
             upper_bound = np.quantile(hat_X, positive_quantiles[i], axis=0).reshape(-1)
@@ -447,19 +452,123 @@ class PicardIterationsArtist:
                 label=f"{percentage:.0%} of agents",
             )
 
-        num_paths = 0
-        colormap = mpl.colormaps["Blues"]
-        colors = colormap(np.linspace(0.5, 1, num_paths))
-        for i in range(num_paths):
-            axs.plot(t, hat_X[i, :, 0].reshape(-1), color=colors[i], alpha=0.9)
+        blues = mpl.colormaps["Blues"](np.linspace(0.5, 0.75, 2))
+        greens = mpl.colormaps["Greens"](np.linspace(0.5, 0.75, 2))
+        reds = mpl.colormaps["Reds"](np.linspace(0.5, 0.75, 2))
 
-        mean = np.mean(hat_X, axis=0).reshape(-1)
-        axs.plot(t, mean, color="orange", label="Agents mean")
+        path_index = 1
+        hat_mean = cast_to_np(self.filtration.forward_mean_field)[path_index, :, :]
+
+        axs.plot(
+            t,
+            hat_mean,
+            color=greens[0],
+            linestyle="dashed",
+            label="Agents mean - Approximation",
+        )
+
+        mean = (
+            self.filtration.common_noise_coefficient
+            * self.filtration.common_noise[path_index, :, :]
+        )
+        axs.plot(
+            t,
+            mean,
+            color=greens[1],
+            label="Agents mean - Analytical",
+        )
+
+        if self.analytical_forward_solution is not None:
+            x = cast_to_np(self.analytical_forward_solution(self.filtration))[
+                path_index, :, :
+            ]
+            axs.plot(t, x, color=reds[1], label="Forward Process - Analytical")
+
+        x_hat = cast_to_np(self.filtration.forward_process)[1, :, :]
+
+        axs.plot(
+            t,
+            x_hat,
+            color=reds[0],
+            linestyle="dashed",
+            label="Forward Process - Approximation",
+        )
+
+        if self.analytical_backward_solution is not None:
+            y = cast_to_np(self.analytical_backward_solution(self.filtration))[
+                path_index, :, :
+            ]
+            axs.plot(t, y, color=blues[1], label="Backward Process - Analytical")
+
+        y_hat = cast_to_np(self.filtration.backward_process)[path_index, :, :]
+        axs.plot(
+            t,
+            y_hat,
+            color=blues[0],
+            linestyle="dashed",
+            label="Backward Process - Approximation",
+        )
+
         axs.legend()
-        path = f"./.figures/population_measure_flow_iteration_{self.iteration + 1}.png"
+        axs.grid(True)
+        axs.set_xlim([0, 1])
+        path = f"{self.output_folder}/population_measure_flow_iteration_{self.iteration + 1}.png"
 
         plt.savefig(path)
 
+        plt.close()
+
+    def save_errors(self):
+        error_x, error_y, _ = self.calculate_errors()
+        mean = self.filtration.common_noise_coefficient * self.filtration.common_noise
+        error_m = self.filtration.forward_mean_field - mean
+        self.errors["error_x"].append(error_x)
+        self.errors["error_y"].append(error_y)
+        self.errors["error_m"].append(error_m)
+
+    def plot_error_hist_for_iterations(self):
+        if self.analytical_backward_solution is None:
+            return
+        _, axs = plt.subplots(1, 3, figsize=(9, 3), layout="constrained")
+        axs[0].set_xlabel(r"$(X^i_t - X_t)$")
+        axs[1].set_xlabel(r"$(Y^i_t - Y_t)$")
+        axs[2].set_xlabel(r"$(m^i_t - m_t)$")
+
+        n_bins = 50
+
+        alphas = [0.3, 0.4, 0.6]
+        for i, iteration in enumerate(self.error_plot_iterations):
+            axs[0].hist(
+                self.errors["error_x"][i].reshape(-1),
+                bins=n_bins,
+                density=True,
+                label=f"Error histogram at iteration {iteration}",
+                color="r",
+                alpha=alphas[i],
+            )
+            axs[1].hist(
+                self.errors["error_y"][i].reshape(-1),
+                bins=n_bins,
+                density=True,
+                label=f"Error histogram at iteration {iteration}",
+                color="r",
+                alpha=alphas[i],
+            )
+            axs[2].hist(
+                self.errors["error_m"][i].reshape(-1),
+                bins=n_bins,
+                density=True,
+                label=f"Error histogram at iteration {iteration}",
+                color="r",
+                alpha=alphas[i],
+            )
+
+        for i in range(3):
+            axs[i].grid(True)
+
+        axs[2].legend()
+
+        plt.savefig(f"{self.output_folder}/error_histograms.png")
         plt.close()
 
     def end_of_iteration_callback(self, fbsde, iteration):
@@ -472,6 +581,9 @@ class PicardIterationsArtist:
         self.register_single_path()
         self.plot_loss_along_iteration()
         self.plot_population_measure_flow()
+        if self.iteration in self.error_plot_iterations:
+            self.save_errors()
 
     def end_of_solver_callback(self, fbsde):
         self.plot_approximator_paths_along_iterations()
+        self.plot_error_hist_for_iterations()
