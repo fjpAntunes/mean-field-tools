@@ -1,4 +1,5 @@
-from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde.filtration import Filtration, CommonNoiseFiltration
+from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
 import torch
 from typing import Callable
 
@@ -40,3 +41,44 @@ class MeasureFlow:
         parameterized_mean_field = self.parametrization(paths)
         self._validate_parametrization_shape(parameterized_mean_field)
         return parameterized_mean_field
+
+
+class CommonNoiseMeasureFlow(MeasureFlow):
+    def __init__(
+        self,
+        filtration: CommonNoiseFiltration,
+        parametrization=None,
+    ):
+        self.filtration = filtration
+
+    def initialize_approximator(self, nn_args: dict = {}, training_args={}):
+        self.nn_args = nn_args
+        self.training_args = training_args
+
+        domain_dimensions = 1 + self.filtration.spatial_dimensions
+        self.mean_approximator = FunctionApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.filtration.spatial_dimensions,
+            **nn_args,
+        )
+
+    def _set_elicitability_input(self) -> torch.Tensor:
+        processes = [self.filtration.time_process, self.filtration.common_noise]
+        out = torch.cat(processes, dim=2)
+        return out
+
+    def _elicit_mean_as_function_of_common_noise(self, paths):
+
+        self.mean_approximator.minimize_over_sample(
+            self.elicitability_input, paths, **self.training_args
+        )
+
+    def parameterize(self, paths: torch.Tensor):
+        """Calculates conditional mean of `paths` using elicitability over the common noise."""
+        self.elicitability_input = self._set_elicitability_input()
+        self._elicit_mean_as_function_of_common_noise(paths)
+        mean_field_parametrization = self.mean_approximator.detached_call(
+            self.elicitability_input
+        )
+
+        return mean_field_parametrization
