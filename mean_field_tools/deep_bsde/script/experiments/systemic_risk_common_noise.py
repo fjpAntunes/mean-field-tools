@@ -167,6 +167,30 @@ def analytical_mean_X(filtration: CommonNoiseFiltration):
     return mean_X
 
 
+def riemman_integral(process, filtration: Filtration):
+    dt = filtration.dt
+
+    initial = torch.zeros(
+        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
+    )
+    integral = torch.cat([initial, torch.cumsum(process[:, :-1, :] * dt, dim=1)], dim=1)
+
+    return integral
+
+
+def ito_integral(process, filtration: Filtration):
+    initial = torch.zeros(
+        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
+    )
+    dBt = filtration.brownian_increments
+
+    ito_integral = torch.cat(
+        [initial, torch.cumsum(process[:, :-1, :] * dBt, axis=1)], dim=1
+    )
+
+    return ito_integral
+
+
 def analytical_X(filtration: Filtration):
     m_t = analytical_mean_X(filtration)
     t = filtration.time_process
@@ -175,19 +199,14 @@ def analytical_X(filtration: Filtration):
 
     theta = a + q + niu
 
-    dummy_time = filtration.time_process[:, :-1, 0].unsqueeze(-1)
-    integrand = (
-        torch.exp(theta[:, :-1, :] * dummy_time) * filtration.brownian_increments
-    )
+    exp_int_theta = torch.exp(riemman_integral(theta, filtration))
 
-    initial = torch.zeros(
-        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
-    )
-    integral = torch.cat([initial, torch.cumsum(integrand, dim=1)], dim=1)
+    drift_term = riemman_integral(theta * exp_int_theta * m_t, filtration)
 
-    ito_integral = torch.exp(-theta * t) * integral
+    vol_term = ito_integral(SIGMA * exp_int_theta, filtration)
 
-    value = m_t + (XI - m_t) * torch.exp(-theta * t) + SIGMA * ito_integral
+    value = (XI + drift_term + vol_term) / exp_int_theta
+
     return value
 
 
@@ -272,7 +291,7 @@ PICARD_ITERATION_ARGS = {
 
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=3,
+    number_of_iterations=10,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
@@ -310,6 +329,10 @@ PLOTTING_FILTRATION.forward_mean_field = measure_flow.mean_approximator.detached
     input
 )
 
+import pdb
+
+pdb.set_trace()
+
 print("Solving again for plotting")
 
 forward_sde.filtration = PLOTTING_FILTRATION
@@ -327,7 +350,7 @@ poster_artist = SystemicRiskCommonNoiseArtist(
 poster_artist.plot_error_hist_for_iterations = lambda: None
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=1,
+    number_of_iterations=10,
     plotter=poster_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )

@@ -458,15 +458,6 @@ class PicardIterationsArtist:
 
         path_index = 1
         hat_mean = cast_to_np(self.filtration.forward_mean_field)[path_index, :, :]
-
-        axs.plot(
-            t,
-            hat_mean,
-            color=greens[0],
-            linestyle="dashed",
-            label="Agents mean - Approximation",
-        )
-
         mean = (
             self.filtration.common_noise_coefficient
             * self.filtration.common_noise[path_index, :, :]
@@ -477,23 +468,30 @@ class PicardIterationsArtist:
             color=greens[1],
             label="Agents mean - Analytical",
         )
+        axs.plot(
+            t,
+            hat_mean,
+            color=greens[0],
+            linestyle="dashed",
+            label="Agents mean - Approximation",
+        )
 
         if self.analytical_forward_solution is not None:
             x = cast_to_np(self.analytical_forward_solution(self.filtration))[
                 path_index, :, :
             ]
-            axs.plot(t, x, color=reds[1], label="Forward Process - Analytical")
+            axs.plot(t, x, color=blues[1], label="Forward Process - Analytical")
 
         x_hat = cast_to_np(self.filtration.forward_process)[1, :, :]
 
         axs.plot(
             t,
             x_hat,
-            color=reds[0],
+            color=blues[0],
             linestyle="dashed",
             label="Forward Process - Approximation",
         )
-
+        """
         if self.analytical_backward_solution is not None:
             y = cast_to_np(self.analytical_backward_solution(self.filtration))[
                 path_index, :, :
@@ -508,7 +506,7 @@ class PicardIterationsArtist:
             linestyle="dashed",
             label="Backward Process - Approximation",
         )
-
+        """
         axs.legend()
         axs.grid(True)
         axs.set_xlim([0, 1])
