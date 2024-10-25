@@ -89,7 +89,7 @@ class FunctionApproximator(nn.Module):
         y = self(x)
         if y.shape != (1,):
             y = y.squeeze(-1)
-        aux_tensor = torch.ones(x.shape[:-1])
+        aux_tensor = torch.ones(y.shape)
         gradient = torch.autograd.grad(y, x, aux_tensor)[0]
         return gradient
 

@@ -51,14 +51,15 @@ class NumericalForwardSDE(ForwardSDE):
         self.tolerance = tolerance
 
     def _initial_integral_term(self):
-        initial = torch.zeros_like(self.filtration.time_process[:, 0, :]).unsqueeze(1)
+        initial = torch.zeros_like(self.filtration.brownian_process[:, 0, :]).unsqueeze(
+            1
+        )
         return initial
 
     def calculate_riemman_integral(self):
         initial = self._initial_integral_term()
         drift = self.drift(self.filtration)[:, :-1, :]
         dt = self.filtration.dt
-
         riemman_integral = torch.cat([initial, torch.cumsum(drift * dt, axis=1)], dim=1)
         return riemman_integral
 
@@ -437,7 +438,8 @@ class ForwardBackwardSDE:
             initial_forward_process, initial_forward_volatility
         )
         self._initialize_backward_process(
-            self.filtration.time_process, torch.ones_like(self.filtration.time_process)
+            self.filtration.time_process,
+            torch.ones_like(self.filtration.brownian_process),
         )
         for i in range(number_of_iterations):
             self.iteration = i
