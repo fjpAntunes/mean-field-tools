@@ -35,7 +35,7 @@ X_0 = MultivariateNormal(loc, scale_tril=torch.diag(scale)).sample(
 )
 
 beta_0 = 0.1
-beta_1 = 20
+beta_1 = 0.2
 
 
 def beta_function(filtration: Filtration):
@@ -48,17 +48,6 @@ def beta_function(filtration: Filtration):
 
 mu_1 = torch.Tensor([3, 3])
 mu_2 = torch.Tensor([-3, -3])
-
-
-def DENSITY_FUNCTION(x):
-    d_1 = (torch.linalg.norm(x - mu_1, dim=-1) ** 2) / 2
-    d_2 = (torch.linalg.norm(x - mu_2, dim=-1) ** 2) / 2
-
-    value = torch.exp(-d_1) + torch.exp(-d_2)
-
-    value = value.unsqueeze(-1)
-    return value
-
 
 "Forward SDE definition"
 
@@ -100,9 +89,9 @@ def TERMINAL_CONDITION(filtration: Filtration):
     X_T = filtration.forward_process[:, -1, :]
 
     d_1 = -(torch.linalg.norm(X_T - mu_1, dim=-1) ** 2) / 2
-    d_2 = -(torch.linalg.norm(X_T - mu_2, dim=-1) ** 2) / 2
+    # d_2 = -(torch.linalg.norm(X_T - mu_2, dim=-1) ** 2) / 2
 
-    deltas = torch.cat([d_1.unsqueeze(-1), d_2.unsqueeze(-1)], dim=-1)
+    deltas = d_1  # torch.cat([d_1.unsqueeze(-1), d_2.unsqueeze(-1)], dim=-1)
 
     value = torch.logsumexp(deltas, dim=-1)
     return value.unsqueeze(-1)
@@ -113,6 +102,7 @@ backward_sde = BackwardSDE(
     filtration=FILTRATION,
     exogenous_process=["time_process", "forward_process"],
     drift=BACKWARD_DRIFT,
+    number_of_dimensions=1,
 )
 backward_sde.initialize_approximator(
     nn_args={

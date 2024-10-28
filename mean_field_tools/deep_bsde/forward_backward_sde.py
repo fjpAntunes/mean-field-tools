@@ -144,6 +144,7 @@ class BackwardSDE:
         filtration: Filtration,
         exogenous_process=["time_process", "brownian_process"],
         drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        number_of_dimensions: int = None,
     ):
         r"""Initialization function of the class.
 
@@ -154,11 +155,14 @@ class BackwardSDE:
               possible processes are "time_process", "brownian_process", "forward_process","forward_mean_field".
               Defaults to ["time_process", "brownian_process"].
             drift (DriftType, optional): Drift function $f$ for the BSDE. Note the sign convention. Defaults to zero_drift.
+            number_of_dimensions (int): Number of dimensions of the process Y_t.
+                Parameter defaults to none, in which case the process has the same number of dimensions as the brownian motion.
         """
         self.terminal_condition_function = terminal_condition_function
         self.drift = drift
         self.filtration = filtration
         self._set_exogenous_process(exogenous_process_list=exogenous_process)
+        self._set_number_of_dimensions(number_of_dimensions)
 
     def _set_exogenous_process(self, exogenous_process_list: list):
         for process in exogenous_process_list:
@@ -174,6 +178,12 @@ class BackwardSDE:
 
         self.exogenous_process = exogenous_process_list
 
+    def _set_number_of_dimensions(self, number_of_dimensions):
+        if number_of_dimensions is None:
+            self.number_of_dimensions = self.filtration.brownian_process.shape[-1]
+        else:
+            self.number_of_dimensions = number_of_dimensions
+
     def initialize_approximator(
         self, nn_args: dict = {}
     ):  # Maybe we could just pass a FunctionApproximator object on initialization
@@ -188,7 +198,7 @@ class BackwardSDE:
         )
         self.y_approximator = FunctionApproximator(
             domain_dimension=domain_dimensions,
-            output_dimension=self.filtration.spatial_dimensions,
+            output_dimension=self.number_of_dimensions,
             **nn_args,
         )
 
