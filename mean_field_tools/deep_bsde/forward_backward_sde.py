@@ -201,6 +201,7 @@ class BackwardSDE:
             output_dimension=self.number_of_dimensions,
             **nn_args,
         )
+        return self.y_approximator
 
     def generate_backward_process(self):
         input = self.set_approximator_input()
