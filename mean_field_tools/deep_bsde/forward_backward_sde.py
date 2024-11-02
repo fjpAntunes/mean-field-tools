@@ -414,8 +414,17 @@ class ForwardBackwardSDE:
         self._add_forward_mean_field_to_filtration()
 
     def _initialize_backward_process(self, backward_process, backward_volatility):
-        self.filtration.backward_process = backward_process
-        self.filtration.backward_volatility = backward_volatility
+        if backward_process is None:
+            self.filtration.backward_process = self.filtration.time_process
+        else:
+            self.filtration.backward_process = backward_process
+
+        if backward_volatility is None:
+            self.filtration.backward_volatility = torch.ones_like(
+                self.filtration.brownian_process
+            )
+        else:
+            self.filtration.backward_volatility = backward_volatility
 
     def _update_states(self):
         self._add_backward_process_to_filtration()
@@ -429,6 +438,8 @@ class ForwardBackwardSDE:
         number_of_iterations: int,
         initial_forward_process=None,
         initial_forward_volatility=None,
+        initial_backward_process=None,
+        initial_backward_volatility=None,
         plotter: PicardIterationsArtist = None,
         approximator_args: dict = {},
         end_of_iteration_callback=None,
@@ -450,8 +461,7 @@ class ForwardBackwardSDE:
             initial_forward_process, initial_forward_volatility
         )
         self._initialize_backward_process(
-            self.filtration.time_process,
-            torch.ones_like(self.filtration.brownian_process),
+            initial_backward_process, initial_backward_volatility
         )
         for i in range(number_of_iterations):
             self.iteration = i
