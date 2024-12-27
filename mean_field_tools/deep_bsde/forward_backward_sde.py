@@ -51,14 +51,15 @@ class NumericalForwardSDE(ForwardSDE):
         self.tolerance = tolerance
 
     def _initial_integral_term(self):
-        initial = torch.zeros_like(self.filtration.time_process[:, 0, :]).unsqueeze(1)
+        initial = torch.zeros_like(self.filtration.brownian_process[:, 0, :]).unsqueeze(
+            1
+        )
         return initial
 
     def calculate_riemman_integral(self):
         initial = self._initial_integral_term()
         drift = self.drift(self.filtration)[:, :-1, :]
         dt = self.filtration.dt
-
         riemman_integral = torch.cat([initial, torch.cumsum(drift * dt, axis=1)], dim=1)
         return riemman_integral
 
@@ -143,6 +144,7 @@ class BackwardSDE:
         filtration: Filtration,
         exogenous_process=["time_process", "brownian_process"],
         drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        number_of_dimensions: int = None,
     ):
         r"""Initialization function of the class.
 
@@ -153,11 +155,14 @@ class BackwardSDE:
               possible processes are "time_process", "brownian_process", "forward_process","forward_mean_field".
               Defaults to ["time_process", "brownian_process"].
             drift (DriftType, optional): Drift function $f$ for the BSDE. Note the sign convention. Defaults to zero_drift.
+            number_of_dimensions (int): Number of dimensions of the process Y_t.
+                Parameter defaults to none, in which case the process has the same number of dimensions as the brownian motion.
         """
         self.terminal_condition_function = terminal_condition_function
         self.drift = drift
         self.filtration = filtration
         self._set_exogenous_process(exogenous_process_list=exogenous_process)
+        self._set_number_of_dimensions(number_of_dimensions)
 
     def _set_exogenous_process(self, exogenous_process_list: list):
         for process in exogenous_process_list:
@@ -173,6 +178,12 @@ class BackwardSDE:
 
         self.exogenous_process = exogenous_process_list
 
+    def _set_number_of_dimensions(self, number_of_dimensions):
+        if number_of_dimensions is None:
+            self.number_of_dimensions = self.filtration.brownian_process.shape[-1]
+        else:
+            self.number_of_dimensions = number_of_dimensions
+
     def initialize_approximator(
         self, nn_args: dict = {}
     ):  # Maybe we could just pass a FunctionApproximator object on initialization
@@ -187,9 +198,10 @@ class BackwardSDE:
         )
         self.y_approximator = FunctionApproximator(
             domain_dimension=domain_dimensions,
-            output_dimension=self.filtration.spatial_dimensions,
+            output_dimension=self.number_of_dimensions,
             **nn_args,
         )
+        return self.y_approximator
 
     def generate_backward_process(self):
         input = self.set_approximator_input()
@@ -402,8 +414,17 @@ class ForwardBackwardSDE:
         self._add_forward_mean_field_to_filtration()
 
     def _initialize_backward_process(self, backward_process, backward_volatility):
-        self.filtration.backward_process = backward_process
-        self.filtration.backward_volatility = backward_volatility
+        if backward_process is None:
+            self.filtration.backward_process = self.filtration.time_process
+        else:
+            self.filtration.backward_process = backward_process
+
+        if backward_volatility is None:
+            self.filtration.backward_volatility = torch.ones_like(
+                self.filtration.brownian_process
+            )
+        else:
+            self.filtration.backward_volatility = backward_volatility
 
     def _update_states(self):
         self._add_backward_process_to_filtration()
@@ -417,8 +438,11 @@ class ForwardBackwardSDE:
         number_of_iterations: int,
         initial_forward_process=None,
         initial_forward_volatility=None,
+        initial_backward_process=None,
+        initial_backward_volatility=None,
         plotter: PicardIterationsArtist = None,
         approximator_args: dict = {},
+        end_of_iteration_callback=None,
     ):
         """Solve the FBSDE system through Picard Iterations.
 
@@ -437,7 +461,7 @@ class ForwardBackwardSDE:
             initial_forward_process, initial_forward_volatility
         )
         self._initialize_backward_process(
-            self.filtration.time_process, torch.ones_like(self.filtration.time_process)
+            initial_backward_process, initial_backward_volatility
         )
         for i in range(number_of_iterations):
             self.iteration = i
@@ -445,5 +469,7 @@ class ForwardBackwardSDE:
             self._update_states()
             if plotter is not None:
                 plotter.end_of_iteration_callback(fbsde=self, iteration=i)
+            if end_of_iteration_callback is not None:
+                end_of_iteration_callback()
         if plotter is not None:
             plotter.end_of_solver_callback(fbsde=self)
