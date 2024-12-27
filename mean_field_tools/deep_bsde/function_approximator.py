@@ -89,7 +89,7 @@ class FunctionApproximator(nn.Module):
         y = self(x)
         if y.shape != (1,):
             y = y.squeeze(-1)
-        aux_tensor = torch.ones(x.shape[:-1])
+        aux_tensor = torch.ones(y.shape)
         gradient = torch.autograd.grad(y, x, aux_tensor)[0]
         return gradient
 
@@ -240,3 +240,26 @@ class FunctionApproximator(nn.Module):
         if len(self.loss_recent_history) == window_size:
             self.loss_history.append(np.mean(self.loss_recent_history))
             self.loss_recent_history.pop(0)
+
+
+class OperatorApproximator(FunctionApproximator):
+    def __init__(self):
+        super(OperatorApproximator, self).__init__(
+            domain_dimension=1, output_dimension=1
+        )
+        self.hidden_size = 3
+        self.num_layers = 1
+        self.input_size = 1
+        self.gru = nn.GRU(
+            self.input_size, self.hidden_size, self.num_layers, batch_first=True
+        )
+
+        self.output = nn.Linear(self.hidden_size, 1)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
+        out, _ = self.gru(x, h0)
+
+        out = self.output(out)
+        out = out
+        return out
