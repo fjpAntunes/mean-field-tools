@@ -3,6 +3,7 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     NumericalForwardSDE,
     ForwardBackwardSDE,
 )
+from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
 from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
 from mean_field_tools.deep_bsde.artist import (
     FunctionApproximatorArtist,
@@ -15,6 +16,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
+nn = torch.nn
 
 torch.cuda.empty_cache()
 
@@ -292,65 +294,59 @@ PICARD_ITERATION_ARGS = {
 
 forward_backward_sde.backward_solve(
     number_of_iterations=10,
-    plotter=iterations_artist,
+    # plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
 
-PLOTTING_FILTRATION = CommonNoiseFiltration(
-    spatial_dimensions=SPATIAL_DIMENSIONS,
-    time_domain=TIME_DOMAIN,
-    number_of_paths=NUMBER_OF_PATHS,
-    common_noise_coefficient=COMMON_NOISE_COEFFICIENT,
-    seed=0,
+
+class OperatorApproximator(FunctionApproximator):
+    def __init__(self):
+        super(OperatorApproximator, self).__init__(
+            domain_dimension=1, output_dimension=1
+        )
+        self.hidden_size = 5
+        self.num_layers = 2
+        self.input_size = 2
+        self.gru = nn.GRU(
+            self.input_size, self.hidden_size, self.num_layers, batch_first=True
+        )
+
+        self.output = nn.Linear(self.hidden_size, 1)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
+        out, _ = self.gru(x, h0)
+
+        out = self.output(out)
+        out = out
+
+        return out
+
+
+u_hat = OperatorApproximator()  # domain_dimension=1, output_dimension=1)
+
+
+training_strategy_args = {
+    "batch_size": 1024,
+    "number_of_iterations": 1000,
+    "number_of_batches": 1000,
+}
+
+## Does not work as expected.
+
+input_data = torch.stack(
+    [FILTRATION.time_process, FILTRATION.brownian_process], axis=2
+).squeeze()
+u_hat.minimize_over_sample(
+    sample=input_data,
+    target=(FILTRATION.forward_process - XI),
+    training_strategy_args=training_strategy_args,
 )
 
+X_hat = u_hat(input_data) + XI
 
-PLOTTING_FILTRATION.brownian_increments = (
-    PLOTTING_FILTRATION.common_noise_coefficient
-    * PLOTTING_FILTRATION.common_noise_increments[0, :, :]
-    + ((1 - PLOTTING_FILTRATION.common_noise_coefficient**2) ** 0.5)
-    * PLOTTING_FILTRATION.idiosyncratic_noise_increments
-)
-PLOTTING_FILTRATION.brownian_process = PLOTTING_FILTRATION._generate_brownian_process(
-    PLOTTING_FILTRATION.brownian_increments
-)
+X_t = FILTRATION.forward_process
 
+error = X_hat - X_t
 
-PLOTTING_FILTRATION.common_noise = PLOTTING_FILTRATION.common_noise[4, :, 0].repeat(
-    repeats=(NUMBER_OF_PATHS, 1)
-)
-PLOTTING_FILTRATION.common_noise = torch.unsqueeze(
-    PLOTTING_FILTRATION.common_noise, dim=-1
-)
-
-measure_flow.filtration = PLOTTING_FILTRATION
-input = measure_flow._set_elicitability_input()
-PLOTTING_FILTRATION.forward_mean_field = measure_flow.mean_approximator.detached_call(
-    input
-)
-
-import pdb
-
-pdb.set_trace()
-
-print("Solving again for plotting")
-
-forward_sde.filtration = PLOTTING_FILTRATION
-backward_sde.filtration = PLOTTING_FILTRATION
-forward_backward_sde.filtration = PLOTTING_FILTRATION
-forward_backward_sde.measure_flow = None
-
-poster_artist = SystemicRiskCommonNoiseArtist(
-    PLOTTING_FILTRATION,
-    analytical_forward_solution=analytical_X,
-    analytical_backward_solution=analytical_Y,
-    analytical_backward_volatility=analytical_Z,
-    output_folder="./poster_plots",
-)
-poster_artist.plot_error_hist_for_iterations = lambda: None
-
-forward_backward_sde.backward_solve(
-    number_of_iterations=10,
-    plotter=poster_artist,
-    approximator_args=PICARD_ITERATION_ARGS,
-)
+print(torch.mean(error**2) + torch.var(error))

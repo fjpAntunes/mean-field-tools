@@ -141,28 +141,46 @@ def analytic_Y_as_function_of_X(X_t, t, T, module=np):
     return Y_t
 
 
+def riemman_integral(process, filtration: Filtration):
+    dt = filtration.dt
+
+    initial = torch.zeros(
+        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
+    )
+    integral = torch.cat([initial, torch.cumsum(process[:, :-1, :] * dt, dim=1)], dim=1)
+
+    return integral
+
+
+def ito_integral(process, filtration: Filtration):
+    initial = torch.zeros(
+        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
+    )
+    dBt = filtration.brownian_increments
+
+    ito_integral = torch.cat(
+        [initial, torch.cumsum(process[:, :-1, :] * dBt, axis=1)], dim=1
+    )
+
+    return ito_integral
+
+
 def analytical_X(filtration: Filtration):
-    X_t = filtration.forward_process
-    m_t = torch.mean(filtration.forward_process, dim=0)
+    m_t = ZERO_FUNCTION(filtration)
     t = filtration.time_process
     T = t[:, -1].unsqueeze(-1)
     niu = niu_function(t, T, module=torch)
 
     theta = a + q + niu
 
-    dummy_time = filtration.time_process[:, :-1, 0].unsqueeze(-1)
-    integrand = (
-        torch.exp(theta[:, :-1, :] * dummy_time) * filtration.brownian_increments
-    )
+    exp_int_theta = torch.exp(riemman_integral(theta, filtration))
 
-    initial = torch.zeros(
-        size=(filtration.number_of_paths, 1, filtration.spatial_dimensions)
-    )
-    integral = torch.cat([initial, torch.cumsum(integrand, dim=1)], dim=1)
+    drift_term = riemman_integral(theta * exp_int_theta * m_t, filtration)
 
-    ito_integral = torch.exp(-theta * t) * integral
+    vol_term = ito_integral(SIGMA * exp_int_theta, filtration)
 
-    value = m_t + (XI - m_t) * torch.exp(-theta * t) + SIGMA * ito_integral
+    value = (XI + drift_term + vol_term) / exp_int_theta
+
     return value
 
 
@@ -213,3 +231,8 @@ forward_backward_sde.backward_solve(
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
+
+
+X_hat = FILTRATION.forward_process
+X = analytical_X(FILTRATION)
+error_x = X - X_hat
