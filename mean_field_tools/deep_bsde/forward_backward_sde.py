@@ -209,7 +209,9 @@ class BackwardSDE:
 
     def generate_backward_volatility(self):
         input = self.set_approximator_input()
-        grad_y_wrt_x = self.y_approximator.grad(input)[:, :, 1:]
+        grad_y_wrt_x = self.y_approximator.grad(input)[
+            :, :, 1 : 1 + self.number_of_dimensions
+        ]
         if "brownian_process" in self.exogenous_process:
             return grad_y_wrt_x
 

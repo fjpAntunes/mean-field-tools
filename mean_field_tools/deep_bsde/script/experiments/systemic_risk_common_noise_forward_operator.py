@@ -1,31 +1,39 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import (
-    Filtration,
     BackwardSDE,
     NumericalForwardSDE,
     ForwardBackwardSDE,
 )
+from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
+from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
 from mean_field_tools.deep_bsde.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
+    cast_to_np,
 )
 
-from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
+from mean_field_tools.deep_bsde.measure_flow import CommonNoiseMeasureFlow
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
+nn = torch.nn
 
 torch.cuda.empty_cache()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-TIME_DOMAIN = torch.linspace(0, 1, 101)
+COMMON_NOISE_COEFFICIENT = 0.3
+NUMBER_OF_TIMESTEPS = 101
 NUMBER_OF_PATHS = 10_000
 SPATIAL_DIMENSIONS = 1
 
-FILTRATION = Filtration(
+TIME_DOMAIN = torch.linspace(0, 1, NUMBER_OF_TIMESTEPS)
+
+FILTRATION = CommonNoiseFiltration(
     spatial_dimensions=SPATIAL_DIMENSIONS,
     time_domain=TIME_DOMAIN,
     number_of_paths=NUMBER_OF_PATHS,
+    common_noise_coefficient=COMMON_NOISE_COEFFICIENT,
     seed=0,
 )
 
@@ -53,7 +61,7 @@ def ZERO_FUNCTION(filtration: Filtration):
 
 def FORWARD_DRIFT(filtration: Filtration):
     X_t = filtration.forward_process
-    m_t = torch.mean(X_t, dim=0)
+    m_t = filtration.forward_mean_field
     Y_t = filtration.backward_process
 
     value = (a + q) * (m_t - X_t) - Y_t
@@ -78,7 +86,7 @@ forward_sde = NumericalForwardSDE(
 
 def BACKWARD_DRIFT(filtration: Filtration):
     X_t = filtration.forward_process
-    m_t = torch.mean(X_t, dim=0)
+    m_t = filtration.forward_mean_field
     Y_t = filtration.backward_process
     value = (a + q) * Y_t + (epsilon - q**2) * (m_t - X_t)
     return -value
@@ -86,7 +94,7 @@ def BACKWARD_DRIFT(filtration: Filtration):
 
 def TERMINAL_CONDITION(filtration: Filtration):
     X_T = filtration.forward_process[:, -1, :]
-    mu_T = torch.mean(X_T, dim=0)
+    mu_T = filtration.forward_mean_field[:, -1, :]
     value = c * (X_T - mu_T)
 
     return value
@@ -105,9 +113,20 @@ backward_sde.initialize_approximator(
     }
 )
 
-"FBSDE definition"
+"measure flow definition"
 
-measure_flow = MeasureFlow(filtration=FILTRATION)
+measure_flow = CommonNoiseMeasureFlow(filtration=FILTRATION)
+measure_flow.initialize_approximator(
+    training_args={
+        "training_strategy_args": {
+            "batch_size": 512,
+            "number_of_iterations": 100,
+            "number_of_batches": 100,
+        }
+    },
+)
+
+"FBSDE definition"
 
 forward_backward_sde = ForwardBackwardSDE(
     filtration=FILTRATION,
@@ -141,6 +160,15 @@ def analytic_Y_as_function_of_X(X_t, t, T, module=np):
     return Y_t
 
 
+def analytical_mean_X(filtration: CommonNoiseFiltration):
+    W0_t = filtration.common_noise
+    rho = filtration.common_noise_coefficient
+    mean_xi = torch.mean(XI)
+    mean_X = mean_xi + rho * SIGMA * W0_t
+
+    return mean_X
+
+
 def riemman_integral(process, filtration: Filtration):
     dt = filtration.dt
 
@@ -166,7 +194,7 @@ def ito_integral(process, filtration: Filtration):
 
 
 def analytical_X(filtration: Filtration):
-    m_t = ZERO_FUNCTION(filtration)
+    m_t = analytical_mean_X(filtration)
     t = filtration.time_process
     T = t[:, -1].unsqueeze(-1)
     niu = niu_function(t, T, module=torch)
@@ -184,11 +212,12 @@ def analytical_X(filtration: Filtration):
     return value
 
 
-def analytical_Y(filtration: Filtration):
+def analytical_Y(filtration: CommonNoiseFiltration):
     t = filtration.time_process
     T = t[:, -1].unsqueeze(-1)
     X_t = filtration.forward_process
-    m_t = torch.mean(X_t, dim=0)
+    m_t = analytical_mean_X(filtration)
+
     niu = niu_function(t, T, module=torch)
     Y_t = -niu * (m_t - X_t)
 
@@ -206,12 +235,51 @@ artist = FunctionApproximatorArtist(
     save_figures=True, analytical_solution=analytic_Y_as_function_of_X
 )
 
-iterations_artist = PicardIterationsArtist(
+
+class SystemicRiskCommonNoiseArtist(PicardIterationsArtist):
+    def plot_single_path(self: PicardIterationsArtist):
+        _, axs = plt.subplots(3, 1, layout="constrained")
+        t = cast_to_np(self.filtration.time_process)[0, :, :]
+
+        x = cast_to_np(self.analytical_forward_solution(self.filtration))[0, :, :]
+        axs[0].plot(t, x, color="r", label="Forward Process - Analytical")
+
+        mean_x = cast_to_np(analytical_mean_X(self.filtration))[0, :, :]
+        axs[1].plot(t, mean_x, color="r", label="Forward Process Mean - Analytical")
+
+        y = cast_to_np(self.analytical_backward_solution(self.filtration))[0, :, :]
+        axs[2].plot(t, y, color="r", label="Backward Process - Analytical")
+
+        y_hat = cast_to_np(self.filtration.backward_process)[0, :, :]
+        x_hat = cast_to_np(self.filtration.forward_process)[0, :, :]
+        mean_x_hat = cast_to_np(self.filtration.forward_mean_field)[0, :, :]
+        axs[0].plot(t, x_hat, "b--", label="Forward Process - Approximation")
+        axs[1].plot(
+            t,
+            mean_x_hat,
+            "b--",
+            label="Forward Process Mean - Approximation",
+        )
+        axs[2].plot(t, y_hat, "b--", label="Backward Process - Approximation")
+
+        for i in [0, 1, 2]:
+            axs[i].legend()
+        path = f"./.figures/single_path_{self.iteration}.png"
+
+        plt.savefig(path)
+
+        plt.close()
+
+
+iterations_artist = SystemicRiskCommonNoiseArtist(
     FILTRATION,
     analytical_forward_solution=analytical_X,
     analytical_backward_solution=analytical_Y,
     analytical_backward_volatility=analytical_Z,
 )
+
+
+"Solving"
 
 PICARD_ITERATION_ARGS = {
     "training_strategy_args": {
@@ -224,15 +292,61 @@ PICARD_ITERATION_ARGS = {
 }
 
 
-"Solving"
-
 forward_backward_sde.backward_solve(
     number_of_iterations=10,
-    plotter=iterations_artist,
+    # plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
 
 
-X_hat = FILTRATION.forward_process
-X = analytical_X(FILTRATION)
-error_x = X - X_hat
+class OperatorApproximator(FunctionApproximator):
+    def __init__(self):
+        super(OperatorApproximator, self).__init__(
+            domain_dimension=1, output_dimension=1
+        )
+        self.hidden_size = 5
+        self.num_layers = 2
+        self.input_size = 2
+        self.gru = nn.GRU(
+            self.input_size, self.hidden_size, self.num_layers, batch_first=True
+        )
+
+        self.output = nn.Linear(self.hidden_size, 1)
+
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
+        out, _ = self.gru(x, h0)
+
+        out = self.output(out)
+        out = out
+
+        return out
+
+
+u_hat = OperatorApproximator()  # domain_dimension=1, output_dimension=1)
+
+
+training_strategy_args = {
+    "batch_size": 1024,
+    "number_of_iterations": 1000,
+    "number_of_batches": 1000,
+}
+
+## Does not work as expected.
+
+input_data = torch.stack(
+    [FILTRATION.time_process, FILTRATION.brownian_process], axis=2
+).squeeze()
+u_hat.minimize_over_sample(
+    sample=input_data,
+    target=(FILTRATION.forward_process - XI),
+    training_strategy_args=training_strategy_args,
+)
+
+X_hat = u_hat(input_data) + XI
+
+X_t = FILTRATION.forward_process
+
+error = X_hat - X_t
+
+print(torch.mean(error**2) + torch.var(error))
