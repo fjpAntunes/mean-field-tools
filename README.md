@@ -27,6 +27,22 @@ poetry install
 
 Check the `experiments` directory and individual module README files for examples and usage instructions.
 
+## Testing
+
+The project uses pytest for testing. Tests are organized into unit and integration tests within the `mean_field_tools/deep_bsde/test/` directory.
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test categories
+pytest mean_field_tools/deep_bsde/test/unit/
+pytest mean_field_tools/deep_bsde/test/integration/
+
+# Run a specific test file
+pytest mean_field_tools/deep_bsde/test/unit/test_function_approximator.py
+```
+
 ## Structure
 
 - `mean_field_tools/deep_bsde/`: Core implementations for deep BSDE methods
