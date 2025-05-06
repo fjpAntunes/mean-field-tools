@@ -209,6 +209,9 @@ class BackwardSDE:
 
     def generate_backward_volatility(self):
         input = self.set_approximator_input()
+        # import pdb
+
+        # pdb.set_trace()
         grad_y_wrt_x = self.y_approximator.grad(input)[
             :, :, 1 : 1 + self.number_of_dimensions
         ]
@@ -368,7 +371,11 @@ class ForwardBackwardSDE:
             updated_forward_mean_field = self.measure_flow.parameterize(
                 self.filtration.forward_process.detach()
             )
-            self.filtration.forward_mean_field = updated_forward_mean_field
+            damped_update_forward_mean_field = self._damping_update(
+                current=self.filtration.forward_mean_field,
+                update=updated_forward_mean_field,
+            )
+            self.filtration.forward_mean_field = damped_update_forward_mean_field
 
     def _add_backward_process_to_filtration(self):
         updated_backward_process = self.backward_sde.generate_backward_process()

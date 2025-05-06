@@ -138,6 +138,21 @@ def test_gradient_with_respect_to_input():
     assert test.tolist() == benchmark
 
 
+def test_gradient_with_respect_to_input_2():
+    """Tests simple point gradient.
+    The variable point_sample should represent a state input point
+    """
+    approximator = setup()
+    approximator.forward = lambda x: 2 * x[:, 0] + 5 * x[:, 1]
+    point_sample = torch.Tensor([[0, 0]])
+    point_sample.requires_grad = True
+    test = approximator.grad(point_sample)
+    test = test[0]
+
+    benchmark = [2, 5]
+    assert test.tolist() == benchmark
+
+
 def test_batch_gradient_with_respect_to_input():
     """Tests batch point gradients."""
     approximator = setup()
@@ -148,4 +163,15 @@ def test_batch_gradient_with_respect_to_input():
     point_sample.requires_grad = True
     test = approximator.grad(point_sample)
     benchmark = [[1, 1], [1, 1]]
+    assert test.tolist() == benchmark
+
+
+def test_batch_gradient_with_respect_to_input_2():
+    """Tests batch point gradients."""
+    approximator = setup()
+    approximator.forward = lambda x: 2 * x[:, 0] * x[:, 1] + 5 * x[:, 1]
+    point_sample = torch.Tensor([[1, 1], [0, 0]])
+    point_sample.requires_grad = True
+    test = approximator.grad(point_sample)
+    benchmark = [[2, 7], [0, 5]]
     assert test.tolist() == benchmark

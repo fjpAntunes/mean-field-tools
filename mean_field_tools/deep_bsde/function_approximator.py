@@ -32,7 +32,7 @@ class FunctionApproximator(nn.Module):
         }
 
         self.device = device
-        self.is_training = False
+        self.has_trained = False
 
         self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
         self.hidden = nn.ModuleList(
@@ -66,7 +66,7 @@ class FunctionApproximator(nn.Module):
             out = self.activation(layer(out))
 
         out = self.output(out)
-        out = self.postprocess(out, training_status=self.is_training)
+        out = self.postprocess(out, training_status=self.has_trained)
         return out
 
     def grad(self, x: torch.Tensor) -> torch.Tensor:
@@ -85,7 +85,11 @@ class FunctionApproximator(nn.Module):
         Returns:
             torch.Tensor: Gradients for each point of each path. Should be of shape (num_paths, path_length, input_dimensions);
         """
+        # import pdb
+
+        # pdb.set_trace()
         x.requires_grad = True
+
         y = self(x)
         if y.shape != (1,):
             y = y.squeeze(-1)
@@ -128,7 +132,7 @@ class FunctionApproximator(nn.Module):
 
     def training_setup(self):
         """Pre-training object state configuration."""
-        self.is_training = True
+        self.has_trained = True
         self.optimizer = self.sgd_parameters["optimizer"](
             self.parameters(), **self.sgd_parameters["optimizer_params"]
         )
@@ -229,11 +233,12 @@ class FunctionApproximator(nn.Module):
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
 
-        self.training_setup()
+        if not self.has_trained:
+            self.training_setup()
 
         training_strategy(**training_strategy_args)
 
-        self.is_training = False
+        # self.has_trained = False
 
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)
