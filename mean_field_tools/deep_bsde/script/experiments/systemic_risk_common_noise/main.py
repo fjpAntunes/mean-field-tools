@@ -4,7 +4,7 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     ForwardBackwardSDE,
 )
 from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
-from mean_field_tools.deep_bsde.artist import (
+from mean_field_tools.deep_bsde.script.experiments.systemic_risk_common_noise.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
     cast_to_np,
@@ -42,11 +42,11 @@ XI = torch.distributions.normal.Normal(loc=0, scale=2).sample(
 
 "Parameters"
 
-a = 1
+a = 2
 q = 1
 SIGMA = 1
 epsilon = 10
-c = 1
+c = 0.1
 
 "Forward SDE definition"
 
@@ -106,6 +106,8 @@ backward_sde = BackwardSDE(
 )
 backward_sde.initialize_approximator(
     nn_args={
+        "number_of_layers": 2,
+        "number_of_nodes": 18,
         "device": device,
         "optimizer": torch.optim.Adam,
     }
@@ -115,6 +117,12 @@ backward_sde.initialize_approximator(
 
 measure_flow = CommonNoiseMeasureFlow(filtration=FILTRATION)
 measure_flow.initialize_approximator(
+    nn_args={
+        "number_of_layers": 2,
+        "number_of_nodes": 18,
+        "device": device,
+        "optimizer": torch.optim.Adam,
+    },
     training_args={
         "training_strategy_args": {
             "batch_size": 512,
@@ -274,6 +282,7 @@ iterations_artist = SystemicRiskCommonNoiseArtist(
     analytical_forward_solution=analytical_X,
     analytical_backward_solution=analytical_Y,
     analytical_backward_volatility=analytical_Z,
+    analytical_forward_mean=analytical_mean_X,
 )
 
 
@@ -291,7 +300,7 @@ PICARD_ITERATION_ARGS = {
 
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=10,
+    number_of_iterations=201,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
@@ -354,3 +363,7 @@ forward_backward_sde.backward_solve(
     plotter=poster_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
+
+# Questions
+# - Why the decoupling field plot is scattered?
+# - Why Z is not approximating? Or is it approximating too slowly?
