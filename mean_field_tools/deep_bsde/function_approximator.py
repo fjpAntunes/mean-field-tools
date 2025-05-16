@@ -248,13 +248,13 @@ class FunctionApproximator(nn.Module):
 
 
 class OperatorApproximator(FunctionApproximator):
-    def __init__(self):
+    def __init__(self, input_size=1, num_layers=1, hidden_size=3):
         super(OperatorApproximator, self).__init__(
             domain_dimension=1, output_dimension=1
         )
-        self.hidden_size = 3
-        self.num_layers = 1
-        self.input_size = 1
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.input_size = input_size
         self.gru = nn.GRU(
             self.input_size, self.hidden_size, self.num_layers, batch_first=True
         )

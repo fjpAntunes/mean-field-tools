@@ -316,7 +316,6 @@ class BackwardSDE:
             terminal_condition, drift_integral
         )
         optimization_input = self.set_approximator_input()
-
         self.y_approximator.minimize_over_sample(
             optimization_input, optimization_target, **approximator_args
         )
