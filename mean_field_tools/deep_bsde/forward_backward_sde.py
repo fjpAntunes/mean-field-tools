@@ -163,6 +163,7 @@ class BackwardSDE:
         self.filtration = filtration
         self._set_exogenous_process(exogenous_process_list=exogenous_process)
         self._set_number_of_dimensions(number_of_dimensions)
+        self.padding_size = len(self.filtration.time_domain) // 2
 
     def _set_exogenous_process(self, exogenous_process_list: list):
         for process in exogenous_process_list:
@@ -205,7 +206,9 @@ class BackwardSDE:
 
     def generate_backward_process(self):
         input = self.set_approximator_input()
-        return self.y_approximator.detached_call(input)
+        out = self.y_approximator.detached_call(input)
+        out = self._remove_padding(out)
+        return out
 
     def generate_backward_volatility(self):
         input = self.set_approximator_input()
@@ -215,12 +218,16 @@ class BackwardSDE:
         grad_y_wrt_x = self.y_approximator.grad(input)[
             :, :, 1 : 1 + self.number_of_dimensions
         ]
+
+        grad_y_wrt_x = self._remove_padding(grad_y_wrt_x)
         if "brownian_process" in self.exogenous_process:
-            return grad_y_wrt_x
+            out = grad_y_wrt_x
 
         if "forward_process" in self.exogenous_process:
             volatility_of_x = self.filtration.forward_volatility
-            return grad_y_wrt_x * volatility_of_x
+            out = grad_y_wrt_x * volatility_of_x
+
+        return out
 
     def set_drift_path(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Calculates the value of the drift $f(t,X_t,Y_t)$ for each given path,
@@ -234,6 +241,7 @@ class BackwardSDE:
         total = torch.sum(self.drift_path, dim=1).unsqueeze(1)
         self.drift_integral = total - torch.cumsum(self.drift_path, dim=1)
         self.drift_integral = self.drift_integral * self.filtration.dt
+
         return self.drift_path, self.drift_integral
 
     def set_terminal_condition(self) -> torch.Tensor:
@@ -266,6 +274,8 @@ class BackwardSDE:
         optimization_target = terminal_condition.unsqueeze(1)
         optimization_target = optimization_target + drift_integral
 
+        optimization_target = self._add_padding(optimization_target)
+
         return optimization_target
 
     def set_approximator_input(self) -> torch.Tensor:
@@ -283,6 +293,8 @@ class BackwardSDE:
             self.filtration.__dict__.get(name) for name in self.exogenous_process
         ]
         out = torch.cat(processes, dim=2)
+        out = self._add_padding(out)
+
         return out
 
     def calculate_volatility_integral(self) -> torch.Tensor:
@@ -302,6 +314,20 @@ class BackwardSDE:
         _, drift_integral = self.set_drift_path()
         volatility_integral = self.calculate_volatility_integral()
         return terminal_condition + drift_integral - volatility_integral
+
+    def _add_padding(self, tensor):
+        right_padding = tensor[:, -1, :]
+        right_padding = right_padding.reshape(tensor.shape[0], 1, tensor.shape[2])
+        right_padding = right_padding.repeat(1, self.padding_size, 1)
+
+        out = torch.cat([tensor, right_padding], dim=1)
+        return out
+
+    def _remove_padding(self, tensor):
+
+        out = tensor[:, : -self.padding_size, :]
+
+        return out
 
     def solve(self, approximator_args: dict = None):
         """Performs the minimization step in order to calculate the conditional expectation through the elicitability method.

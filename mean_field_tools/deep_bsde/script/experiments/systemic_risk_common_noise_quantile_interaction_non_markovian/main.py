@@ -3,8 +3,9 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     NumericalForwardSDE,
     ForwardBackwardSDE,
 )
+from mean_field_tools.deep_bsde.function_approximator import OperatorApproximator
 from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
-from mean_field_tools.deep_bsde.script.experiments.systemic_risk_no_common_noise.artist import (
+from mean_field_tools.deep_bsde.script.experiments.systemic_risk_common_noise_non_markovian.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
     cast_to_np,
@@ -20,7 +21,7 @@ torch.cuda.empty_cache()
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-COMMON_NOISE_COEFFICIENT = 0
+COMMON_NOISE_COEFFICIENT = 0.3
 NUMBER_OF_TIMESTEPS = 101
 NUMBER_OF_PATHS = 10_000
 SPATIAL_DIMENSIONS = 1
@@ -116,13 +117,14 @@ backward_sde.initialize_approximator(
 "measure flow definition"
 
 measure_flow = CommonNoiseMeasureFlow(filtration=FILTRATION)
+
+
+gru = OperatorApproximator(
+    input_size=FILTRATION.spatial_dimensions + 1,
+)
+
 measure_flow.initialize_approximator(
-    nn_args={
-        "number_of_layers": 2,
-        "number_of_nodes": 18,
-        "device": device,
-        "optimizer": torch.optim.Adam,
-    },
+    approximator=gru,
     training_args={
         "training_strategy_args": {
             "batch_size": 512,
@@ -304,3 +306,66 @@ forward_backward_sde.backward_solve(
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
+
+PLOTTING_FILTRATION = CommonNoiseFiltration(
+    spatial_dimensions=SPATIAL_DIMENSIONS,
+    time_domain=TIME_DOMAIN,
+    number_of_paths=NUMBER_OF_PATHS,
+    common_noise_coefficient=COMMON_NOISE_COEFFICIENT,
+    seed=0,
+)
+
+
+PLOTTING_FILTRATION.brownian_increments = (
+    PLOTTING_FILTRATION.common_noise_coefficient
+    * PLOTTING_FILTRATION.common_noise_increments[0, :, :]
+    + ((1 - PLOTTING_FILTRATION.common_noise_coefficient**2) ** 0.5)
+    * PLOTTING_FILTRATION.idiosyncratic_noise_increments
+)
+PLOTTING_FILTRATION.brownian_process = PLOTTING_FILTRATION._generate_brownian_process(
+    PLOTTING_FILTRATION.brownian_increments
+)
+
+
+PLOTTING_FILTRATION.common_noise = PLOTTING_FILTRATION.common_noise[4, :, 0].repeat(
+    repeats=(NUMBER_OF_PATHS, 1)
+)
+PLOTTING_FILTRATION.common_noise = torch.unsqueeze(
+    PLOTTING_FILTRATION.common_noise, dim=-1
+)
+
+measure_flow.filtration = PLOTTING_FILTRATION
+input = measure_flow._set_elicitability_input()
+PLOTTING_FILTRATION.forward_mean_field = measure_flow.mean_approximator.detached_call(
+    input
+)
+
+import pdb
+
+pdb.set_trace()
+
+print("Solving again for plotting")
+
+forward_sde.filtration = PLOTTING_FILTRATION
+backward_sde.filtration = PLOTTING_FILTRATION
+forward_backward_sde.filtration = PLOTTING_FILTRATION
+forward_backward_sde.measure_flow = None
+
+poster_artist = SystemicRiskCommonNoiseArtist(
+    PLOTTING_FILTRATION,
+    analytical_forward_solution=analytical_X,
+    analytical_backward_solution=analytical_Y,
+    analytical_backward_volatility=analytical_Z,
+    output_folder="./poster_plots",
+)
+poster_artist.plot_error_hist_for_iterations = lambda: None
+
+forward_backward_sde.backward_solve(
+    number_of_iterations=10,
+    plotter=poster_artist,
+    approximator_args=PICARD_ITERATION_ARGS,
+)
+
+# Questions
+# - Why the decoupling field plot is scattered?
+# - Why Z is not approximating? Or is it approximating too slowly?
