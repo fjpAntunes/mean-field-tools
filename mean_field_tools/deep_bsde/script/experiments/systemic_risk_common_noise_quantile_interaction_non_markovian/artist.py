@@ -181,7 +181,7 @@ class PicardIterationsArtist:
         self.errors = {"error_x": [], "error_y": [], "error_m": []}
         self.error_plot_iterations = [0, 1, 2]
         self.output_folder = output_folder
-        self.base_path = "./mean_field_tools/deep_bsde/script/experiments/systemic_risk_common_noise_non_markovian/.figures/"
+        self.base_path = "./mean_field_tools/deep_bsde/script/experiments/systemic_risk_common_noise_quantile_interaction_non_markovian/.figures/"
 
     def violin_plot(self, ax, time, errors, quantile_value):
         boundary = np.quantile(
