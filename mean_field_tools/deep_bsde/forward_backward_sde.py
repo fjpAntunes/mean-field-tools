@@ -353,6 +353,10 @@ class BackwardSDE:
 
 
 class CommonNoiseBackwardSDE(BackwardSDE):
+
+    def _check_if_common_noise_filtration(self):
+        pass
+
     def set_z_optimization_target(
         self,
         terminal_condition: torch.Tensor,
@@ -387,6 +391,11 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         self.z_approximator.minimize_over_sample(
             optimization_input, optimization_target, **approximator_args
         )
+
+    def solve(self):
+        self.super().solve()
+        # Solve for Z
+        # Solve for Z_0
 
 
 class ForwardBackwardSDE:
