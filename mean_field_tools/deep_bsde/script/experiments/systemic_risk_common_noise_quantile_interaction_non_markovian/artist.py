@@ -449,24 +449,6 @@ class PicardIterationsArtist:
         t = cast_to_np(self.filtration.time_process)[0, :, :]
 
         for i in range(num_plot_paths):
-            x = cast_to_np(self.analytical_forward_solution(self.filtration))[i, :, :]
-            axs[0, 0].plot(t, x, color="r", label=r"$X_t$ - Analytical")
-
-        for i in range(num_plot_paths):
-            y = cast_to_np(self.analytical_backward_solution(self.filtration))[i, :, :]
-            axs[0, 1].plot(t, y, color="r", label=r"$Y_t$ - Analytical")
-
-        for i in range(num_plot_paths):
-            y = cast_to_np(self.analytical_backward_volatility(self.filtration))[
-                i, :, :
-            ]
-            axs[1, 0].plot(t, y, color="r", label=r"$Z_t$ - Analytical")
-
-        for i in range(num_plot_paths):
-            mean_x = cast_to_np(self.analytical_forward_mean(self.filtration))[i, :, :]
-            axs[1, 1].plot(t, mean_x, color="r", label=r"$m_t$ - Analytical")
-
-        for i in range(num_plot_paths):
             y_hat = cast_to_np(self.filtration.backward_process)[i, :, :]
             x_hat = cast_to_np(self.filtration.forward_process)[i, :, :]
             z_hat = cast_to_np(self.filtration.backward_volatility)[i, :, :]

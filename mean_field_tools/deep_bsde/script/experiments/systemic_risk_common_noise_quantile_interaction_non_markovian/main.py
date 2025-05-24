@@ -292,10 +292,10 @@ class SystemicRiskCommonNoiseArtist(PicardIterationsArtist):
 
 iterations_artist = SystemicRiskCommonNoiseArtist(
     FILTRATION,
-    analytical_forward_solution=analytical_X,
-    analytical_backward_solution=analytical_Y,
-    analytical_backward_volatility=analytical_Z,
-    analytical_forward_mean=analytical_mean_X,
+    # analytical_forward_solution=analytical_X,
+    # analytical_backward_solution=analytical_Y,
+    # analytical_backward_volatility=analytical_Z,
+    # analytical_forward_mean=analytical_mean_X,
 )
 
 
