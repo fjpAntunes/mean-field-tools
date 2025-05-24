@@ -202,7 +202,14 @@ class BackwardSDE:
             output_dimension=self.number_of_dimensions,
             **nn_args,
         )
-        return self.y_approximator
+
+        self.z_approximator = FunctionApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.number_of_dimensions,
+            **nn_args,
+        )
+
+        return self.y_approximator, self.z_approximator
 
     def generate_backward_process(self):
         input = self.set_approximator_input()
@@ -343,6 +350,41 @@ class BackwardSDE:
         )
         optimization_input = self.set_approximator_input()
         self.y_approximator.minimize_over_sample(
+            optimization_input, optimization_target, **approximator_args
+        )
+
+    def set_z_optimization_target(
+        self,
+        terminal_condition: torch.Tensor,
+        drift_integral: torch.Tensor,
+        brownian_motion: torch.Tensor,
+    ):
+
+        optimization_target = terminal_condition.unsqueeze(1)
+        optimization_target = optimization_target + drift_integral
+
+        backward_process = self.generate_backward_process()
+
+        optimization_target = backward_process - optimization_target
+
+        brownian_delta = brownian_motion[:, -1, :].unsqueeze(1) - brownian_motion
+
+        optimization_target = optimization_target * brownian_delta
+
+        optimization_target = self._add_padding(optimization_target)
+
+        return optimization_target
+
+    def solve_for_z(self, approximator_args: dict = None):
+        _, drift_integral = self.set_drift_path()
+        terminal_condition = self.set_terminal_condition()
+
+        brownian_motion = self.filtration.brownian_process
+        optimization_target = self.set_z_optimization_target(
+            terminal_condition, drift_integral, brownian_motion
+        )
+        optimization_input = self.set_approximator_input()
+        self.z_approximator.minimize_over_sample(
             optimization_input, optimization_target, **approximator_args
         )
 
