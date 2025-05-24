@@ -69,7 +69,7 @@ class FunctionApproximator(nn.Module):
         out = self.postprocess(out, training_status=self.has_trained)
         return out
 
-    def grad(self, x: torch.Tensor) -> torch.Tensor:
+    def grad(self, x: torch.Tensor, create_graph=False) -> torch.Tensor:
         """Calculates approximate gradient for the approximate function
 
         Uses `torch.autograd.grad` to calculate gradients for each point.
@@ -85,16 +85,13 @@ class FunctionApproximator(nn.Module):
         Returns:
             torch.Tensor: Gradients for each point of each path. Should be of shape (num_paths, path_length, input_dimensions);
         """
-        # import pdb
-
-        # pdb.set_trace()
         x.requires_grad = True
 
         y = self(x)
         if y.shape != (1,):
             y = y.squeeze(-1)
         aux_tensor = torch.ones(y.shape)
-        gradient = torch.autograd.grad(y, x, aux_tensor)[0]
+        gradient = torch.autograd.grad(y, x, aux_tensor, create_graph=create_graph)[0]
         return gradient
 
     def detached_call(self, x):

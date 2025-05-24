@@ -1,9 +1,9 @@
-from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
+from mean_field_tools.deep_bsde.forward_backward_sde import (
+    Filtration,
+    CommonNoiseBackwardSDE,
+)
 from mean_field_tools.deep_bsde.utils import (
-    QUADRATIC_TERMINAL,
     IDENTITY_TERMINAL,
-    tensors_are_close,
-    L_2_norm,
 )
 import torch
 
@@ -18,7 +18,7 @@ filtration = Filtration(SPATIAL_DIMENSIONS, TIME_DOMAIN, NUMBER_OF_PATHS, seed=0
 
 dt = TIME_DOMAIN[1] - TIME_DOMAIN[0]
 
-bsde = BackwardSDE(
+bsde = CommonNoiseBackwardSDE(
     terminal_condition_function=IDENTITY_TERMINAL,
     filtration=filtration,
 )

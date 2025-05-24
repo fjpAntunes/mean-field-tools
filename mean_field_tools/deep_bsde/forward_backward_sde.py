@@ -219,9 +219,7 @@ class BackwardSDE:
 
     def generate_backward_volatility(self):
         input = self.set_approximator_input()
-        # import pdb
 
-        # pdb.set_trace()
         grad_y_wrt_x = self.y_approximator.grad(input)[
             :, :, 1 : 1 + self.number_of_dimensions
         ]
@@ -353,6 +351,8 @@ class BackwardSDE:
             optimization_input, optimization_target, **approximator_args
         )
 
+
+class CommonNoiseBackwardSDE(BackwardSDE):
     def set_z_optimization_target(
         self,
         terminal_condition: torch.Tensor,
