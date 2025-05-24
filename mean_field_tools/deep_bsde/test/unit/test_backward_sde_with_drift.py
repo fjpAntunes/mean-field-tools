@@ -58,8 +58,11 @@ def test_set_terminal_condition():
 
 
 def test_set_optimization_target_shape():
-    _, optimization_target = setup()
-    assert optimization_target.shape == (3, 101, 1)
+    bsde, optimization_target = setup()
+
+    time_len = len(bsde.filtration.time_domain)
+    padding = bsde.padding_size
+    assert optimization_target.shape == (3, time_len + padding, 1)
 
 
 def test_set_optimization_target_value_at_T():
