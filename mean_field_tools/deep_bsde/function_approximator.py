@@ -248,9 +248,15 @@ class FunctionApproximator(nn.Module):
 
 
 class OperatorApproximator(FunctionApproximator):
-    def __init__(self, input_size=1, num_layers=1, hidden_size=3):
+    def __init__(
+        self,
+        input_size=1,
+        num_layers=1,
+        hidden_size=3,
+        scoring=lambda x, y: (x - y) ** 2,
+    ):
         super(OperatorApproximator, self).__init__(
-            domain_dimension=1, output_dimension=1
+            domain_dimension=1, output_dimension=1, scoring=scoring
         )
         self.hidden_size = hidden_size
         self.num_layers = num_layers

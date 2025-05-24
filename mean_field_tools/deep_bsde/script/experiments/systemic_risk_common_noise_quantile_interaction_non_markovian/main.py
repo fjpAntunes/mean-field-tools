@@ -5,7 +5,8 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
 )
 from mean_field_tools.deep_bsde.function_approximator import OperatorApproximator
 from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
-from mean_field_tools.deep_bsde.script.experiments.systemic_risk_common_noise_non_markovian.artist import (
+
+from mean_field_tools.deep_bsde.script.experiments.systemic_risk_common_noise_quantile_interaction_non_markovian.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
     cast_to_np,
@@ -116,11 +117,21 @@ backward_sde.initialize_approximator(
 
 "measure flow definition"
 
+ALPHA = 0.6
+
 measure_flow = CommonNoiseMeasureFlow(filtration=FILTRATION)
+
+
+def quantile_scoring(x, y, alpha):
+    first_term = torch.where(x >= y, 1, 0) - alpha
+    second_term = x - y
+
+    return first_term * second_term
 
 
 gru = OperatorApproximator(
     input_size=FILTRATION.spatial_dimensions + 1,
+    scoring=lambda x, y: quantile_scoring(x, y, ALPHA),
 )
 
 measure_flow.initialize_approximator(
@@ -281,10 +292,10 @@ class SystemicRiskCommonNoiseArtist(PicardIterationsArtist):
 
 iterations_artist = SystemicRiskCommonNoiseArtist(
     FILTRATION,
-    analytical_forward_solution=analytical_X,
-    analytical_backward_solution=analytical_Y,
-    analytical_backward_volatility=analytical_Z,
-    analytical_forward_mean=analytical_mean_X,
+    # analytical_forward_solution=analytical_X,
+    # analytical_backward_solution=analytical_Y,
+    # analytical_backward_volatility=analytical_Z,
+    # analytical_forward_mean=analytical_mean_X,
 )
 
 

@@ -181,7 +181,7 @@ class PicardIterationsArtist:
         self.errors = {"error_x": [], "error_y": [], "error_m": []}
         self.error_plot_iterations = [0, 1, 2]
         self.output_folder = output_folder
-        self.base_path = "./mean_field_tools/deep_bsde/script/experiments/systemic_risk_common_noise_non_markovian/.figures/"
+        self.base_path = "./mean_field_tools/deep_bsde/script/experiments/systemic_risk_common_noise_quantile_interaction_non_markovian/.figures/"
 
     def violin_plot(self, ax, time, errors, quantile_value):
         boundary = np.quantile(
@@ -447,24 +447,6 @@ class PicardIterationsArtist:
         )
 
         t = cast_to_np(self.filtration.time_process)[0, :, :]
-
-        for i in range(num_plot_paths):
-            x = cast_to_np(self.analytical_forward_solution(self.filtration))[i, :, :]
-            axs[0, 0].plot(t, x, color="r", label=r"$X_t$ - Analytical")
-
-        for i in range(num_plot_paths):
-            y = cast_to_np(self.analytical_backward_solution(self.filtration))[i, :, :]
-            axs[0, 1].plot(t, y, color="r", label=r"$Y_t$ - Analytical")
-
-        for i in range(num_plot_paths):
-            y = cast_to_np(self.analytical_backward_volatility(self.filtration))[
-                i, :, :
-            ]
-            axs[1, 0].plot(t, y, color="r", label=r"$Z_t$ - Analytical")
-
-        for i in range(num_plot_paths):
-            mean_x = cast_to_np(self.analytical_forward_mean(self.filtration))[i, :, :]
-            axs[1, 1].plot(t, mean_x, color="r", label=r"$m_t$ - Analytical")
 
         for i in range(num_plot_paths):
             y_hat = cast_to_np(self.filtration.backward_process)[i, :, :]
