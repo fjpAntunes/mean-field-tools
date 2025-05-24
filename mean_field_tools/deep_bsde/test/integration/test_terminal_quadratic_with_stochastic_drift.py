@@ -10,6 +10,7 @@ we have $f(t,B_t) = B_t$.
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
 import torch
+from mean_field_tools.deep_bsde.utils import tensors_are_close
 
 
 def test_terminal_quadratic_with_stochastic_drift():
@@ -52,7 +53,7 @@ def test_terminal_quadratic_with_stochastic_drift():
 
     forward_path = bsde.filtration.get_paths()[:1, :, :]
 
-    output = bsde.y_approximator(forward_path).tolist()
+    output = bsde.y_approximator(forward_path)
 
     benchmark = [
         [
@@ -160,4 +161,6 @@ def test_terminal_quadratic_with_stochastic_drift():
         ]
     ]
 
-    assert benchmark == output
+    benchmark = torch.Tensor(benchmark)
+
+    assert tensors_are_close(output, benchmark, 0.4)

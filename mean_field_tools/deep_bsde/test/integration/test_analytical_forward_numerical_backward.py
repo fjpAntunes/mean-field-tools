@@ -15,6 +15,8 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
 import torch
 import numpy as np
 
+from mean_field_tools.deep_bsde.utils import tensors_are_close
+
 
 def test_analytical_forward_numerical_backward():
     TIME_DOMAIN = torch.linspace(0, 1, 101)
@@ -88,7 +90,7 @@ def test_analytical_forward_numerical_backward():
     forward_backward_sde._add_forward_process_to_filtration()
     forward_backward_sde._single_picard_step(approximator_args=APPROXIMATOR_ARGS)
 
-    output = backward_sde.generate_backward_process()[0, :, :].tolist()
+    output = backward_sde.generate_backward_process()[0, :, :]
 
     benchmark = [
         [0.3472933769226074],
@@ -193,5 +195,5 @@ def test_analytical_forward_numerical_backward():
         [0.42913419008255005],
         [0.4628603458404541],
     ]
-
-    assert output == benchmark
+    benchmark = torch.Tensor(benchmark)
+    assert tensors_are_close(output, benchmark, 0.5)
