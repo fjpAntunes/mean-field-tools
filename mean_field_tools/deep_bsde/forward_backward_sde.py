@@ -355,7 +355,9 @@ class BackwardSDE:
 class CommonNoiseBackwardSDE(BackwardSDE):
 
     def _check_if_common_noise_filtration(self):
-        pass
+        filtration_type = type(self.filtration).__name__
+        if filtration_type != "CommonNoiseFiltration":
+            raise ValueError("Filtration should be of the CommonNoiseFiltration class")
 
     def set_z_optimization_target(
         self,
