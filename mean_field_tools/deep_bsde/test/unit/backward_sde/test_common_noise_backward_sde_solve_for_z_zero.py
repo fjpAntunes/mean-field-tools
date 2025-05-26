@@ -26,24 +26,52 @@ bsde = CommonNoiseBackwardSDE(
     filtration=FILTRATION,
 )
 
+bsde.initialize_approximator()
+
+
+def mock_generate_backward_process():
+    return FILTRATION.brownian_process
+
+
+bsde.generate_backward_process = mock_generate_backward_process
+
 
 def test_solve_for_idiosyncratic():
     # Z should be sqrt(1 - \rho^2)
-    z_hat = bsde.solve_for_idiosyncratic_volatility()
+    bsde.solve_for_idiosyncratic_volatility(
+        approximator_args={
+            "training_strategy_args": {
+                "batch_size": 512,
+                "number_of_iterations": 100,
+                "number_of_batches": 100,
+                "number_of_plots": 5,
+            }
+        }
+    )
+
+    z_hat = bsde.generate_idiosyncratic_noise_volatility()
 
     z = (1 - RHO**2) ** 0.5 * torch.ones_like(FILTRATION.brownian_process)
 
     err = z_hat - z
-
     assert L_2_norm(err) < 0.1
 
 
 def test_solve_for_common():
     # Z_0 should be \rho
-    z_0_hat = bsde.solve_for_common_volatility()
+    bsde.solve_for_common_volatility(
+        approximator_args={
+            "training_strategy_args": {
+                "batch_size": 512,
+                "number_of_iterations": 100,
+                "number_of_batches": 100,
+                "number_of_plots": 5,
+            }
+        }
+    )
 
+    z_0_hat = bsde.generate_common_noise_volatility()
     z_0 = RHO * torch.ones_like(FILTRATION.brownian_process)
 
     err = z_0_hat - z_0
-
     assert L_2_norm(err) < 0.1

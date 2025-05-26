@@ -1,6 +1,6 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
-from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde.filtration import Filtration, CommonNoiseFiltration
 from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
 from typing import Callable, List
@@ -203,13 +203,7 @@ class BackwardSDE:
             **nn_args,
         )
 
-        self.z_approximator = FunctionApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
-
-        return self.y_approximator, self.z_approximator
+        return self.y_approximator
 
     def generate_backward_process(self):
         input = self.set_approximator_input()
@@ -353,6 +347,46 @@ class BackwardSDE:
 
 
 class CommonNoiseBackwardSDE(BackwardSDE):
+    def __init__(
+        self,
+        terminal_condition_function: Callable[[Filtration], torch.Tensor],
+        filtration: CommonNoiseFiltration,
+        exogenous_process=["time_process", "brownian_process"],
+        drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        number_of_dimensions: int = None,
+    ):
+        super().__init__(
+            terminal_condition_function,
+            filtration,
+            exogenous_process,
+            drift,
+            number_of_dimensions,
+        )
+        self.filtration = filtration
+
+    def initialize_approximator(self, nn_args={}):
+        number_of_spatial_processes = len(self.exogenous_process) - 1
+        domain_dimensions = (
+            1 + number_of_spatial_processes * self.filtration.spatial_dimensions
+        )
+        self.y_approximator = FunctionApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.number_of_dimensions,
+            **nn_args,
+        )
+
+        self.z_approximator = FunctionApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.number_of_dimensions,
+            **nn_args,
+        )
+
+        self.z_zero_approximator = FunctionApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.number_of_dimensions,
+            **nn_args,
+        )
+        return self.y_approximator, self.z_approximator, self.z_zero_approximator
 
     def _check_if_common_noise_filtration(self):
         filtration_type = type(self.filtration).__name__
@@ -381,21 +415,50 @@ class CommonNoiseBackwardSDE(BackwardSDE):
 
         return optimization_target
 
-    def solve_for_z(self, approximator_args: dict = None):
+    def solve_for_z(
+        self,
+        approximator: FunctionApproximator,
+        brownian: torch.Tensor,
+        approximator_args: dict = None,
+    ):
         _, drift_integral = self.set_drift_path()
         terminal_condition = self.set_terminal_condition()
 
-        brownian_motion = self.filtration.brownian_process
         optimization_target = self.set_z_optimization_target(
-            terminal_condition, drift_integral, brownian_motion
+            terminal_condition, drift_integral, brownian
         )
         optimization_input = self.set_approximator_input()
-        self.z_approximator.minimize_over_sample(
+        approximator.minimize_over_sample(
             optimization_input, optimization_target, **approximator_args
         )
 
+    def solve_for_idiosyncratic_volatility(self, approximator_args: dict = None):
+        self.solve_for_z(
+            self.z_approximator, self.filtration.idiosyncratic_noise, approximator_args
+        )
+
+    def solve_for_common_volatility(self, approximator_args: dict = None):
+        self.solve_for_z(
+            self.z_zero_approximator, self.filtration.common_noise, approximator_args
+        )
+
+    def _calculate_volatility(
+        self, z_approximator: FunctionApproximator
+    ) -> torch.Tensor:
+        input = self.set_approximator_input()
+        grad = z_approximator.grad(input)[:, :, 0:1]
+        grad = self._remove_padding(grad)
+        z_hat = grad
+        return z_hat
+
+    def generate_common_noise_volatility(self) -> torch.Tensor:
+        return self._calculate_volatility(self.z_zero_approximator)
+
+    def generate_idiosyncratic_noise_volatility(self) -> torch.Tensor:
+        return self._calculate_volatility(self.z_approximator)
+
     def solve(self):
-        self.super().solve()
+        super().solve()
         # Solve for Z
         # Solve for Z_0
 
