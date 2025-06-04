@@ -400,16 +400,25 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         brownian_motion: torch.Tensor,
     ):
 
-        optimization_target = terminal_condition.unsqueeze(1)
-        optimization_target = optimization_target + drift_integral
-
         backward_process = self.generate_backward_process()
 
-        optimization_target = backward_process - optimization_target
+        backward_delta = backward_process[:, 1:, :] - backward_process[:, :-1, :]
 
-        brownian_delta = brownian_motion[:, -1, :].unsqueeze(1) - brownian_motion
+        optimization_target = (backward_delta / self.filtration.dt) + self.drift_path[
+            :, :-1, :
+        ]
+
+        brownian_delta = brownian_motion[:, 1:, :] - brownian_motion[:, :-1, :]
 
         optimization_target = optimization_target * brownian_delta
+
+        optimization_target = torch.cat(
+            [
+                torch.zeros_like(optimization_target[:, 0, :].unsqueeze(1)),
+                optimization_target,
+            ],
+            dim=1,
+        )
 
         optimization_target = self._add_padding(optimization_target)
 
@@ -446,9 +455,8 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         self, z_approximator: FunctionApproximator
     ) -> torch.Tensor:
         input = self.set_approximator_input()
-        grad = z_approximator.grad(input)[:, :, 0:1]
-        grad = self._remove_padding(grad)
-        z_hat = grad
+        z_hat = z_approximator.detached_call(input)
+        z_hat = self._remove_padding(z_hat)
         return z_hat
 
     def generate_common_noise_volatility(self) -> torch.Tensor:

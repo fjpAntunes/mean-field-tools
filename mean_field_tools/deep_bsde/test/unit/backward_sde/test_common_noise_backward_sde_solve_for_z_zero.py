@@ -54,6 +54,7 @@ def test_solve_for_idiosyncratic():
     z = (1 - RHO**2) ** 0.5 * torch.ones_like(FILTRATION.brownian_process)
 
     err = z_hat - z
+
     assert L_2_norm(err) < 0.1
 
 
@@ -74,4 +75,5 @@ def test_solve_for_common():
     z_0 = RHO * torch.ones_like(FILTRATION.brownian_process)
 
     err = z_0_hat - z_0
+
     assert L_2_norm(err) < 0.1
