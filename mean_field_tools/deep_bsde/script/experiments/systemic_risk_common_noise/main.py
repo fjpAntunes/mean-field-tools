@@ -1,5 +1,5 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import (
-    BackwardSDE,
+    CommonNoiseBackwardSDE,
     NumericalForwardSDE,
     ForwardBackwardSDE,
 )
@@ -98,7 +98,7 @@ def TERMINAL_CONDITION(filtration: Filtration):
     return value
 
 
-backward_sde = BackwardSDE(
+backward_sde = CommonNoiseBackwardSDE(
     drift=BACKWARD_DRIFT,
     terminal_condition_function=TERMINAL_CONDITION,
     filtration=FILTRATION,
@@ -112,6 +112,16 @@ backward_sde.initialize_approximator(
         "optimizer": torch.optim.Adam,
     }
 )
+
+backward_sde.initialize_z_approximator(
+    nn_args={
+        "number_of_layers": 2,
+        "number_of_nodes": 18,
+        "device": device,
+        "optimizer": torch.optim.Adam,
+    }
+)
+
 
 "measure flow definition"
 
@@ -293,17 +303,21 @@ PICARD_ITERATION_ARGS = {
         "batch_size": 512,
         "number_of_iterations": 100,
         "number_of_batches": 100,
-        "plotter": artist,
+        # "plotter": artist,
         "number_of_plots": 1,
     },
 }
 
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=201,
+    number_of_iterations=10,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
+
+import pdb
+
+pdb.set_trace()
 
 PLOTTING_FILTRATION = CommonNoiseFiltration(
     spatial_dimensions=SPATIAL_DIMENSIONS,

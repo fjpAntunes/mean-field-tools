@@ -6,46 +6,10 @@ from typing import Callable
 import numpy as np
 
 
-class FunctionApproximator(nn.Module):
-    def __init__(
-        self,
-        domain_dimension,
-        output_dimension,
-        number_of_layers=5,
-        number_of_nodes=36,
-        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
-        optimizer=optim.Adam,
-        optimizer_params={"lr": 0.005},
-        scheduler=optim.lr_scheduler.StepLR,
-        scheduler_params={"step_size": 5, "gamma": 0.9997},
-        device="cpu",
-    ):
+class AbstractApproximator(nn.Module):
+    def __init__(self):
 
-        super(FunctionApproximator, self).__init__()
-        self.domain_dimension = domain_dimension
-        self.output_dimension = output_dimension
-        self.sgd_parameters = {
-            "optimizer": optimizer,
-            "optimizer_params": optimizer_params,
-            "scheduler": scheduler,
-            "scheduler_params": scheduler_params,
-        }
-
-        self.device = device
-        self.has_trained = False
-
-        self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
-        self.hidden = nn.ModuleList(
-            [
-                nn.Linear(number_of_nodes, number_of_nodes).to(self.device)
-                for _ in range(number_of_layers - 1)
-            ]
-        )
-        self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
-
-        self.activation = nn.SiLU()
-
-        self.scoring = scoring
+        super(AbstractApproximator, self).__init__()
 
     def preprocess(self, input):
         if input.device.type != self.device:
@@ -58,16 +22,6 @@ class FunctionApproximator(nn.Module):
             return output
         else:
             return output.to("cpu")
-
-    def forward(self, x):
-        self.x = self.preprocess(x)
-        out = self.activation(self.input(self.x))
-        for layer in self.hidden:
-            out = self.activation(layer(out))
-
-        out = self.output(out)
-        out = self.postprocess(out, training_status=self.has_trained)
-        return out
 
     def grad(self, x: torch.Tensor, create_graph=False) -> torch.Tensor:
         """Calculates approximate gradient for the approximate function
@@ -244,30 +198,107 @@ class FunctionApproximator(nn.Module):
             self.loss_recent_history.pop(0)
 
 
-class OperatorApproximator(FunctionApproximator):
+class FunctionApproximator(AbstractApproximator):
     def __init__(
         self,
-        input_size=1,
-        num_layers=1,
-        hidden_size=3,
-        scoring=lambda x, y: (x - y) ** 2,
+        domain_dimension,
+        output_dimension,
+        number_of_layers=5,
+        number_of_nodes=36,
+        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
+        optimizer=optim.Adam,
+        optimizer_params={"lr": 0.005},
+        scheduler=optim.lr_scheduler.StepLR,
+        scheduler_params={"step_size": 5, "gamma": 0.9997},
+        device="cpu",
     ):
-        super(OperatorApproximator, self).__init__(
-            domain_dimension=1, output_dimension=1, scoring=scoring
-        )
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.input_size = input_size
-        self.gru = nn.GRU(
-            self.input_size, self.hidden_size, self.num_layers, batch_first=True
-        )
 
-        self.output = nn.Linear(self.hidden_size, 1)
+        super(FunctionApproximator, self).__init__()
+        self.domain_dimension = domain_dimension
+        self.output_dimension = output_dimension
+        self.sgd_parameters = {
+            "optimizer": optimizer,
+            "optimizer_params": optimizer_params,
+            "scheduler": scheduler,
+            "scheduler_params": scheduler_params,
+        }
+
+        self.device = device
+        self.has_trained = False
+
+        self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
+        self.hidden = nn.ModuleList(
+            [
+                nn.Linear(number_of_nodes, number_of_nodes).to(self.device)
+                for _ in range(number_of_layers - 1)
+            ]
+        )
+        self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
+
+        self.activation = nn.SiLU()
+
+        self.scoring = scoring
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
+        self.x = self.preprocess(x)
+        out = self.activation(self.input(self.x))
+        for layer in self.hidden:
+            out = self.activation(layer(out))
+
+        out = self.output(out)
+        out = self.postprocess(out, training_status=self.has_trained)
+        return out
+
+
+class PathDependentApproximator(AbstractApproximator):
+    def __init__(
+        self,
+        domain_dimension,
+        output_dimension,
+        number_of_layers=1,
+        number_of_nodes=2,
+        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
+        optimizer=optim.Adam,
+        optimizer_params={"lr": 0.005},
+        scheduler=optim.lr_scheduler.StepLR,
+        scheduler_params={"step_size": 5, "gamma": 0.9997},
+        device="cpu",
+    ):
+        super(PathDependentApproximator, self).__init__()
+        self.domain_dimension = domain_dimension
+        self.output_dimension = output_dimension
+        self.sgd_parameters = {
+            "optimizer": optimizer,
+            "optimizer_params": optimizer_params,
+            "scheduler": scheduler,
+            "scheduler_params": scheduler_params,
+        }
+
+        self.number_of_layers = number_of_layers
+        self.number_of_nodes = number_of_nodes
+
+        self.device = device
+        self.has_trained = False
+
+        self.gru = nn.GRU(
+            self.domain_dimension, number_of_nodes, number_of_layers, batch_first=True
+        ).to(self.device)
+
+        self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
+
+        self.activation = nn.SiLU()
+
+        self.scoring = scoring
+
+    def forward(self, x):
+        self.x = self.preprocess(x)
+
+        h0 = torch.zeros(self.number_of_layers, x.size(0), self.number_of_nodes).to(
+            self.device
+        )
         out, _ = self.gru(x, h0)
 
         out = self.output(out)
-        out = out
+
+        out = self.postprocess(out, training_status=self.has_trained)
         return out
