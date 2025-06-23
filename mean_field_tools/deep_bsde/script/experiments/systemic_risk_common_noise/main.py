@@ -135,9 +135,9 @@ measure_flow.initialize_approximator(
     },
     training_args={
         "training_strategy_args": {
-            "batch_size": 512,
-            "number_of_iterations": 100,
-            "number_of_batches": 100,
+            "batch_size": 2048,
+            "number_of_iterations": 1000,
+            "number_of_batches": 1000,
         }
     },
 )
@@ -300,17 +300,17 @@ iterations_artist = SystemicRiskCommonNoiseArtist(
 
 PICARD_ITERATION_ARGS = {
     "training_strategy_args": {
-        "batch_size": 512,
-        "number_of_iterations": 100,
-        "number_of_batches": 100,
-        # "plotter": artist,
+        "batch_size": 2048,
+        "number_of_iterations": 1000,
+        "number_of_batches": 1000,
+        "plotter": artist,
         "number_of_plots": 1,
     },
 }
 
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=10,
+    number_of_iterations=100,
     plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
