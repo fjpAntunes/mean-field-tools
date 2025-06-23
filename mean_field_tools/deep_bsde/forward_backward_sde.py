@@ -654,6 +654,7 @@ class ForwardBackwardSDE:
             initial_backward_process, initial_backward_volatility
         )
         for i in range(number_of_iterations):
+            print(f"Picard Iteration {i}")
             self.iteration = i
             self._single_picard_step(approximator_args)
             self._update_states()
