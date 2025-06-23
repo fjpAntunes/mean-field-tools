@@ -83,7 +83,7 @@ class AbstractApproximator(nn.Module):
 
     def training_setup(self):
         """Pre-training object state configuration."""
-        self.has_trained = True
+        self.is_training = True
         self.optimizer = self.sgd_parameters["optimizer"](
             self.parameters(), **self.sgd_parameters["optimizer_params"]
         )
@@ -184,12 +184,12 @@ class AbstractApproximator(nn.Module):
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
 
-        if not self.has_trained:
+        if not self.is_training:
             self.training_setup()
 
         training_strategy(**training_strategy_args)
 
-        # self.has_trained = False
+        self.is_training = False
 
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)

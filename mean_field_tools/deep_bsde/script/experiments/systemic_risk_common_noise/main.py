@@ -115,8 +115,8 @@ backward_sde.initialize_approximator(
 
 backward_sde.initialize_z_approximator(
     nn_args={
-        "number_of_layers": 2,
-        "number_of_nodes": 18,
+        "number_of_layers": 1,
+        "number_of_nodes": 2,
         "device": device,
         "optimizer": torch.optim.Adam,
     }
