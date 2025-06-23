@@ -9,6 +9,8 @@ import numpy as np
 class AbstractApproximator(nn.Module):
     def __init__(self):
 
+        self.is_training = False
+
         super(AbstractApproximator, self).__init__()
 
     def preprocess(self, input):
@@ -17,8 +19,8 @@ class AbstractApproximator(nn.Module):
         else:
             return input
 
-    def postprocess(self, output, training_status):
-        if training_status == True:
+    def postprocess(self, output):
+        if self.is_training == True:
             return output
         else:
             return output.to("cpu")
@@ -224,7 +226,6 @@ class FunctionApproximator(AbstractApproximator):
         }
 
         self.device = device
-        self.has_trained = False
 
         self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
         self.hidden = nn.ModuleList(
@@ -246,7 +247,7 @@ class FunctionApproximator(AbstractApproximator):
             out = self.activation(layer(out))
 
         out = self.output(out)
-        out = self.postprocess(out, training_status=self.has_trained)
+        out = self.postprocess(out)
         return out
 
 
@@ -278,7 +279,6 @@ class PathDependentApproximator(AbstractApproximator):
         self.number_of_nodes = number_of_nodes
 
         self.device = device
-        self.has_trained = False
 
         self.gru = nn.GRU(
             self.domain_dimension, number_of_nodes, number_of_layers, batch_first=True
@@ -300,5 +300,5 @@ class PathDependentApproximator(AbstractApproximator):
 
         out = self.output(out)
 
-        out = self.postprocess(out, training_status=self.has_trained)
+        out = self.postprocess(out)
         return out
