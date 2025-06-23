@@ -296,7 +296,7 @@ class PathDependentApproximator(AbstractApproximator):
         h0 = torch.zeros(self.number_of_layers, x.size(0), self.number_of_nodes).to(
             self.device
         )
-        out, _ = self.gru(x, h0)
+        out, _ = self.gru(self.x, h0)
 
         out = self.output(out)
 
