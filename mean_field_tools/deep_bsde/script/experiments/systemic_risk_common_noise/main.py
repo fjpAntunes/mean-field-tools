@@ -303,7 +303,7 @@ PICARD_ITERATION_ARGS = {
         "batch_size": 2048,
         "number_of_iterations": 1000,
         "number_of_batches": 1000,
-        "plotter": artist,
+        # "plotter": artist,
         "number_of_plots": 1,
     },
 }
@@ -311,7 +311,7 @@ PICARD_ITERATION_ARGS = {
 
 forward_backward_sde.backward_solve(
     number_of_iterations=100,
-    plotter=iterations_artist,
+    # plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
 
