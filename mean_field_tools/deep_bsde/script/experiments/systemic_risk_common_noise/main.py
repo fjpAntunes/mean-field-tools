@@ -301,8 +301,8 @@ iterations_artist = SystemicRiskCommonNoiseArtist(
 PICARD_ITERATION_ARGS = {
     "training_strategy_args": {
         "batch_size": 2048,
-        "number_of_iterations": 1000,
-        "number_of_batches": 1000,
+        "number_of_iterations": 5000,
+        "number_of_batches": 5000,
         # "plotter": artist,
         "number_of_plots": 1,
     },
