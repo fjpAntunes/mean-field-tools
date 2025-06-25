@@ -11,6 +11,13 @@ class AbstractApproximator(nn.Module):
 
         self.is_training = False
 
+        self.training_strategy_args = {
+            "batch_size": 100,
+            "number_of_iterations": 500,
+            "number_of_batches": 5,
+            "number_of_plots": 5,
+        }
+
         super(AbstractApproximator, self).__init__()
 
     def preprocess(self, input):
@@ -173,15 +180,13 @@ class AbstractApproximator(nn.Module):
         sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
         target,  # shape :  (output_dimension, sample_size)
         training_strategy: Callable = None,
-        training_strategy_args: dict = {
-            "batch_size": 100,
-            "number_of_iterations": 500,
-            "number_of_batches": 5,
-            "number_of_plots": 5,
-        },
+        training_strategy_args: dict = {},
     ):
         if training_strategy is None:
             training_strategy = self._batch_sgd_training
+
+        if training_strategy_args is not {}:
+            self.training_strategy_args = training_strategy_args
 
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
@@ -189,7 +194,7 @@ class AbstractApproximator(nn.Module):
         if not self.is_training:
             self.training_setup()
 
-        training_strategy(**training_strategy_args)
+        training_strategy(**self.training_strategy_args)
 
         self.is_training = False
 
