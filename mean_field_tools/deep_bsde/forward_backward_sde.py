@@ -366,6 +366,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             number_of_dimensions,
         )
         self.filtration = filtration
+        self.z_approximator_args = {}
 
     def initialize_z_approximator(
         self,
@@ -482,7 +483,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
 
     def solve(self, approximator_args: dict):
         super().solve(approximator_args)
-        self.solve_for_common_volatility()
+        self.solve_for_common_volatility(self.z_approximator_args)
 
 
 class ForwardBackwardSDE:
