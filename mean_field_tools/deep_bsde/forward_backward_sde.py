@@ -482,7 +482,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
 
     def solve(self, approximator_args: dict):
         super().solve(approximator_args)
-        self.solve_for_common_volatility(approximator_args)
+        self.solve_for_common_volatility()
 
 
 class ForwardBackwardSDE:
