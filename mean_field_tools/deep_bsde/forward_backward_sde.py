@@ -422,7 +422,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             dim=1,
         )
 
-        optimization_target = self._add_padding(optimization_target)
+        # optimization_target = self._add_padding(optimization_target)
 
         return optimization_target
 
@@ -436,7 +436,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             ]
         ]
         out = torch.cat(processes, dim=2)
-        out = self._add_padding(out)
+        # out = self._add_padding(out)
 
         return out
 
@@ -472,7 +472,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     ) -> torch.Tensor:
         input = self.set_z_input()
         z_hat = z_approximator.detached_call(input)
-        z_hat = self._remove_padding(z_hat)
+        # z_hat = self._remove_padding(z_hat)
         return z_hat
 
     def generate_common_noise_volatility(self) -> torch.Tensor:
