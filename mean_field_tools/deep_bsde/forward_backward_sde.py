@@ -456,12 +456,12 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             optimization_input, optimization_target, **approximator_args
         )
 
-    def solve_for_idiosyncratic_volatility(self, approximator_args: dict = None):
+    def solve_for_idiosyncratic_volatility(self, approximator_args: dict = {}):
         self.solve_for_z(
             self.z_approximator, self.filtration.idiosyncratic_noise, approximator_args
         )
 
-    def solve_for_common_volatility(self, approximator_args: dict = None):
+    def solve_for_common_volatility(self, approximator_args: dict = {}):
         self.solve_for_z(
             self.z_zero_approximator, self.filtration.common_noise, approximator_args
         )
