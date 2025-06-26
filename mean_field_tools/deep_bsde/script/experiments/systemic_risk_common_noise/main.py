@@ -1,5 +1,5 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import (
-    BackwardSDE,
+    CommonNoiseBackwardSDE,
     NumericalForwardSDE,
     ForwardBackwardSDE,
 )
@@ -98,7 +98,7 @@ def TERMINAL_CONDITION(filtration: Filtration):
     return value
 
 
-backward_sde = BackwardSDE(
+backward_sde = CommonNoiseBackwardSDE(
     drift=BACKWARD_DRIFT,
     terminal_condition_function=TERMINAL_CONDITION,
     filtration=FILTRATION,
@@ -113,6 +113,16 @@ backward_sde.initialize_approximator(
     }
 )
 
+backward_sde.initialize_z_approximator(
+    nn_args={
+        "number_of_layers": 1,
+        "number_of_nodes": 2,
+        "device": device,
+        "optimizer": torch.optim.Adam,
+    }
+)
+
+
 "measure flow definition"
 
 measure_flow = CommonNoiseMeasureFlow(filtration=FILTRATION)
@@ -125,9 +135,9 @@ measure_flow.initialize_approximator(
     },
     training_args={
         "training_strategy_args": {
-            "batch_size": 512,
-            "number_of_iterations": 100,
-            "number_of_batches": 100,
+            "batch_size": 2048,
+            "number_of_iterations": 1000,
+            "number_of_batches": 1000,
         }
     },
 )
@@ -290,20 +300,24 @@ iterations_artist = SystemicRiskCommonNoiseArtist(
 
 PICARD_ITERATION_ARGS = {
     "training_strategy_args": {
-        "batch_size": 512,
-        "number_of_iterations": 100,
-        "number_of_batches": 100,
-        "plotter": artist,
+        "batch_size": 2048,
+        "number_of_iterations": 5000,
+        "number_of_batches": 5000,
+        # "plotter": artist,
         "number_of_plots": 1,
     },
 }
 
 
 forward_backward_sde.backward_solve(
-    number_of_iterations=201,
-    plotter=iterations_artist,
+    number_of_iterations=40,
+    # plotter=iterations_artist,
     approximator_args=PICARD_ITERATION_ARGS,
 )
+
+import pdb
+
+pdb.set_trace()
 
 PLOTTING_FILTRATION = CommonNoiseFiltration(
     spatial_dimensions=SPATIAL_DIMENSIONS,

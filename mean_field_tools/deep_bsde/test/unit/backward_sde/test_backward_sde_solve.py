@@ -1,5 +1,9 @@
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
-from mean_field_tools.deep_bsde.utils import QUADRATIC_TERMINAL
+from mean_field_tools.deep_bsde.utils import (
+    QUADRATIC_TERMINAL,
+    tensors_are_close,
+    L_2_norm,
+)
 import torch
 
 
@@ -50,6 +54,7 @@ def test_backward_volatility_shape():
 
 
 def test_backward_volatility_value():
+    z = filtration.brownian_process * 2
     backward_volatility = bsde.generate_backward_volatility()
     benchmark = [
         [0.19223235547542572],
@@ -154,7 +159,8 @@ def test_backward_volatility_value():
         [1.5120831727981567],
         [1.6500576734542847],
     ]
-    assert benchmark == backward_volatility[0, :, :].tolist()
+
+    assert L_2_norm(z - backward_volatility) < 0.5
 
 
 def test_calculate_backward_volatility_integral_shape():
@@ -173,13 +179,14 @@ def test_calculate_backward_volatility_integral_value():
     backward_volatility = bsde.generate_backward_volatility()
 
     dt = filtration.dt
-    quadratic_variation = torch.sum(backward_volatility * dt, dim=1).unsqueeze(
+    quadratic_variation = torch.sum((backward_volatility**2) * dt, dim=1).unsqueeze(
         -1
-    ) - torch.cumsum(backward_volatility * dt, dim=1)
-    ito_isometry_deviation = torch.mean(volatility_integral, dim=0) - torch.mean(
+    ) - torch.cumsum((backward_volatility**2) * dt, dim=1)
+    ito_isometry_deviation = torch.mean(volatility_integral**2, dim=0) - torch.mean(
         quadratic_variation, dim=0
     )
-    assert torch.norm(ito_isometry_deviation) < 0.7
+
+    assert L_2_norm(ito_isometry_deviation) < 0.3
 
 
 def test_calculate_picard_operator():

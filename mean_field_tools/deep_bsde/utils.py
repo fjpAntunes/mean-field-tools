@@ -17,3 +17,8 @@ def tensors_are_close(a, b, tolerance=1e-10, norm=torch.norm):
 def QUADRATIC_TERMINAL(filtration: Filtration):
     terminal_brownian = filtration.brownian_process[:, -1, :]
     return terminal_brownian**2
+
+
+def IDENTITY_TERMINAL(filtration: Filtration):
+    terminal_brownian = filtration.brownian_process[:, -1, :]
+    return terminal_brownian

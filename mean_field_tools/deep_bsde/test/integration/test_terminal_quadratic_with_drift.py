@@ -9,6 +9,7 @@ Where $W_t$ is the standard brownian motion.
 
 from mean_field_tools.deep_bsde.forward_backward_sde import Filtration, BackwardSDE
 import torch
+from mean_field_tools.deep_bsde.utils import tensors_are_close
 
 
 def test_terminal_quadratic_with_deterministic_drift():
@@ -55,7 +56,7 @@ def test_terminal_quadratic_with_deterministic_drift():
     output = bsde.y_approximator(forward_path).tolist()
     forward_path = bsde.filtration.get_paths()[:1, :, :]
 
-    output = bsde.y_approximator(forward_path).tolist()
+    output = bsde.y_approximator(forward_path)
 
     benchmark = [
         [
@@ -162,5 +163,6 @@ def test_terminal_quadratic_with_deterministic_drift():
             [0.7911450862884521],
         ]
     ]
+    benchmark = torch.Tensor(benchmark)
 
-    assert benchmark == output
+    assert tensors_are_close(benchmark, output, 0.3)

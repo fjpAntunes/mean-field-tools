@@ -3,7 +3,7 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     NumericalForwardSDE,
     ForwardBackwardSDE,
 )
-from mean_field_tools.deep_bsde.function_approximator import OperatorApproximator
+from mean_field_tools.deep_bsde.function_approximator import PathDependentApproximator
 from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
 
 from mean_field_tools.deep_bsde.script.experiments.systemic_risk_common_noise_quantile_interaction_non_markovian.artist import (
@@ -129,7 +129,7 @@ def quantile_scoring(x, y, alpha):
     return first_term * second_term
 
 
-gru = OperatorApproximator(
+gru = PathDependentApproximator(
     input_size=FILTRATION.spatial_dimensions + 1,
     scoring=lambda x, y: quantile_scoring(x, y, ALPHA),
 )
