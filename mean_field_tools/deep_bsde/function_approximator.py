@@ -6,46 +6,19 @@ from typing import Callable
 import numpy as np
 
 
-class FunctionApproximator(nn.Module):
-    def __init__(
-        self,
-        domain_dimension,
-        output_dimension,
-        number_of_layers=5,
-        number_of_nodes=36,
-        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
-        optimizer=optim.Adam,
-        optimizer_params={"lr": 0.005},
-        scheduler=optim.lr_scheduler.StepLR,
-        scheduler_params={"step_size": 5, "gamma": 0.9997},
-        device="cpu",
-    ):
+class AbstractApproximator(nn.Module):
+    def __init__(self):
 
-        super(FunctionApproximator, self).__init__()
-        self.domain_dimension = domain_dimension
-        self.output_dimension = output_dimension
-        self.sgd_parameters = {
-            "optimizer": optimizer,
-            "optimizer_params": optimizer_params,
-            "scheduler": scheduler,
-            "scheduler_params": scheduler_params,
+        self.is_training = False
+
+        self.training_strategy_args = {
+            "batch_size": 100,
+            "number_of_iterations": 500,
+            "number_of_batches": 5,
+            "number_of_plots": 5,
         }
 
-        self.device = device
-        self.has_trained = False
-
-        self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
-        self.hidden = nn.ModuleList(
-            [
-                nn.Linear(number_of_nodes, number_of_nodes).to(self.device)
-                for _ in range(number_of_layers - 1)
-            ]
-        )
-        self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
-
-        self.activation = nn.SiLU()
-
-        self.scoring = scoring
+        super(AbstractApproximator, self).__init__()
 
     def preprocess(self, input):
         if input.device.type != self.device:
@@ -53,23 +26,13 @@ class FunctionApproximator(nn.Module):
         else:
             return input
 
-    def postprocess(self, output, training_status):
-        if training_status == True:
+    def postprocess(self, output):
+        if self.is_training == True:
             return output
         else:
             return output.to("cpu")
 
-    def forward(self, x):
-        self.x = self.preprocess(x)
-        out = self.activation(self.input(self.x))
-        for layer in self.hidden:
-            out = self.activation(layer(out))
-
-        out = self.output(out)
-        out = self.postprocess(out, training_status=self.has_trained)
-        return out
-
-    def grad(self, x: torch.Tensor) -> torch.Tensor:
+    def grad(self, x: torch.Tensor, create_graph=False) -> torch.Tensor:
         """Calculates approximate gradient for the approximate function
 
         Uses `torch.autograd.grad` to calculate gradients for each point.
@@ -85,16 +48,13 @@ class FunctionApproximator(nn.Module):
         Returns:
             torch.Tensor: Gradients for each point of each path. Should be of shape (num_paths, path_length, input_dimensions);
         """
-        # import pdb
-
-        # pdb.set_trace()
         x.requires_grad = True
 
         y = self(x)
         if y.shape != (1,):
             y = y.squeeze(-1)
         aux_tensor = torch.ones(y.shape)
-        gradient = torch.autograd.grad(y, x, aux_tensor)[0]
+        gradient = torch.autograd.grad(y, x, aux_tensor, create_graph=create_graph)[0]
         return gradient
 
     def detached_call(self, x):
@@ -132,7 +92,7 @@ class FunctionApproximator(nn.Module):
 
     def training_setup(self):
         """Pre-training object state configuration."""
-        self.has_trained = True
+        self.is_training = True
         self.optimizer = self.sgd_parameters["optimizer"](
             self.parameters(), **self.sgd_parameters["optimizer_params"]
         )
@@ -220,25 +180,23 @@ class FunctionApproximator(nn.Module):
         sample,  #  (sample_size, path_length, time_dimension + spatial_dimensions)
         target,  # shape :  (output_dimension, sample_size)
         training_strategy: Callable = None,
-        training_strategy_args: dict = {
-            "batch_size": 100,
-            "number_of_iterations": 500,
-            "number_of_batches": 5,
-            "number_of_plots": 5,
-        },
+        training_strategy_args: dict = {},
     ):
         if training_strategy is None:
             training_strategy = self._batch_sgd_training
 
+        if training_strategy_args is not {}:
+            self.training_strategy_args = training_strategy_args
+
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
 
-        if not self.has_trained:
+        if not self.is_training:
             self.training_setup()
 
-        training_strategy(**training_strategy_args)
+        training_strategy(**self.training_strategy_args)
 
-        # self.has_trained = False
+        self.is_training = False
 
     def _append_loss_moving_average(self, loss, window_size):
         self.loss_recent_history.append(loss)
@@ -247,30 +205,105 @@ class FunctionApproximator(nn.Module):
             self.loss_recent_history.pop(0)
 
 
-class OperatorApproximator(FunctionApproximator):
+class FunctionApproximator(AbstractApproximator):
     def __init__(
         self,
-        input_size=1,
-        num_layers=1,
-        hidden_size=3,
-        scoring=lambda x, y: (x - y) ** 2,
+        domain_dimension,
+        output_dimension,
+        number_of_layers=5,
+        number_of_nodes=36,
+        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
+        optimizer=optim.Adam,
+        optimizer_params={"lr": 0.005},
+        scheduler=optim.lr_scheduler.StepLR,
+        scheduler_params={"step_size": 5, "gamma": 0.9997},
+        device="cpu",
     ):
-        super(OperatorApproximator, self).__init__(
-            domain_dimension=1, output_dimension=1, scoring=scoring
-        )
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.input_size = input_size
-        self.gru = nn.GRU(
-            self.input_size, self.hidden_size, self.num_layers, batch_first=True
-        )
 
-        self.output = nn.Linear(self.hidden_size, 1)
+        super(FunctionApproximator, self).__init__()
+        self.domain_dimension = domain_dimension
+        self.output_dimension = output_dimension
+        self.sgd_parameters = {
+            "optimizer": optimizer,
+            "optimizer_params": optimizer_params,
+            "scheduler": scheduler,
+            "scheduler_params": scheduler_params,
+        }
+
+        self.device = device
+
+        self.input = nn.Linear(domain_dimension, number_of_nodes).to(self.device)
+        self.hidden = nn.ModuleList(
+            [
+                nn.Linear(number_of_nodes, number_of_nodes).to(self.device)
+                for _ in range(number_of_layers - 1)
+            ]
+        )
+        self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
+
+        self.activation = nn.SiLU()
+
+        self.scoring = scoring
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
-        out, _ = self.gru(x, h0)
+        self.x = self.preprocess(x)
+        out = self.activation(self.input(self.x))
+        for layer in self.hidden:
+            out = self.activation(layer(out))
 
         out = self.output(out)
-        out = out
+        out = self.postprocess(out)
+        return out
+
+
+class PathDependentApproximator(AbstractApproximator):
+    def __init__(
+        self,
+        domain_dimension,
+        output_dimension,
+        number_of_layers=1,
+        number_of_nodes=2,
+        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
+        optimizer=optim.Adam,
+        optimizer_params={"lr": 0.005},
+        scheduler=optim.lr_scheduler.StepLR,
+        scheduler_params={"step_size": 5, "gamma": 0.9997},
+        device="cpu",
+    ):
+        super(PathDependentApproximator, self).__init__()
+        self.domain_dimension = domain_dimension
+        self.output_dimension = output_dimension
+        self.sgd_parameters = {
+            "optimizer": optimizer,
+            "optimizer_params": optimizer_params,
+            "scheduler": scheduler,
+            "scheduler_params": scheduler_params,
+        }
+
+        self.number_of_layers = number_of_layers
+        self.number_of_nodes = number_of_nodes
+
+        self.device = device
+
+        self.gru = nn.GRU(
+            self.domain_dimension, number_of_nodes, number_of_layers, batch_first=True
+        ).to(self.device)
+
+        self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
+
+        self.activation = nn.SiLU()
+
+        self.scoring = scoring
+
+    def forward(self, x):
+        self.x = self.preprocess(x)
+
+        h0 = torch.zeros(self.number_of_layers, x.size(0), self.number_of_nodes).to(
+            self.device
+        )
+        out, _ = self.gru(self.x, h0)
+
+        out = self.output(out)
+
+        out = self.postprocess(out)
         return out

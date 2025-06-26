@@ -1,6 +1,9 @@
 import torch
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
-from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde.function_approximator import (
+    FunctionApproximator,
+    PathDependentApproximator,
+)
+from mean_field_tools.deep_bsde.filtration import Filtration, CommonNoiseFiltration
 from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
 from typing import Callable, List
@@ -80,7 +83,7 @@ class NumericalForwardSDE(ForwardSDE):
         while delta > self.tolerance:
             paths = self.generate_paths()
             deviation = paths - self.filtration.forward_process
-            delta = torch.mean(deviation**2) + deviation.var()
+            delta = torch.mean(deviation**2)
             self.filtration.forward_process = paths
 
     def generate_paths(self):
@@ -202,6 +205,7 @@ class BackwardSDE:
             output_dimension=self.number_of_dimensions,
             **nn_args,
         )
+
         return self.y_approximator
 
     def generate_backward_process(self):
@@ -212,9 +216,7 @@ class BackwardSDE:
 
     def generate_backward_volatility(self):
         input = self.set_approximator_input()
-        # import pdb
 
-        # pdb.set_trace()
         grad_y_wrt_x = self.y_approximator.grad(input)[
             :, :, 1 : 1 + self.number_of_dimensions
         ]
@@ -347,6 +349,143 @@ class BackwardSDE:
         )
 
 
+class CommonNoiseBackwardSDE(BackwardSDE):
+    def __init__(
+        self,
+        terminal_condition_function: Callable[[Filtration], torch.Tensor],
+        filtration: CommonNoiseFiltration,
+        exogenous_process=["time_process", "brownian_process"],
+        drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
+        number_of_dimensions: int = None,
+    ):
+        super().__init__(
+            terminal_condition_function,
+            filtration,
+            exogenous_process,
+            drift,
+            number_of_dimensions,
+        )
+        self.filtration = filtration
+        self.z_approximator_args = {}
+
+    def initialize_z_approximator(
+        self,
+        nn_args={},
+    ):
+        number_of_spatial_processes = len(self.exogenous_process) - 1
+        domain_dimensions = (
+            1 + number_of_spatial_processes * self.filtration.spatial_dimensions
+        )
+
+        self.z_approximator = PathDependentApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.number_of_dimensions,
+            **nn_args,
+        )
+
+        self.z_zero_approximator = PathDependentApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.number_of_dimensions,
+            **nn_args,
+        )
+        return self.z_approximator, self.z_zero_approximator
+
+    def _check_if_common_noise_filtration(self):
+        filtration_type = type(self.filtration).__name__
+        if filtration_type != "CommonNoiseFiltration":
+            raise ValueError("Filtration should be of the CommonNoiseFiltration class")
+
+    def set_z_optimization_target(
+        self,
+        terminal_condition: torch.Tensor,
+        drift_integral: torch.Tensor,
+        brownian_motion: torch.Tensor,
+    ):
+
+        backward_process = self.generate_backward_process()
+
+        backward_delta = backward_process[:, 1:, :] - backward_process[:, :-1, :]
+
+        optimization_target = (backward_delta / self.filtration.dt) + self.drift_path[
+            :, :-1, :
+        ]
+
+        brownian_delta = brownian_motion[:, 1:, :] - brownian_motion[:, :-1, :]
+
+        optimization_target = optimization_target * brownian_delta
+
+        optimization_target = torch.cat(
+            [
+                torch.zeros_like(optimization_target[:, 0, :].unsqueeze(1)),
+                optimization_target,
+            ],
+            dim=1,
+        )
+
+        # optimization_target = self._add_padding(optimization_target)
+
+        return optimization_target
+
+    def set_z_input(self):
+        processes = [
+            self.filtration.__dict__.get(name)
+            for name in [
+                "time_process",
+                "forward_process",
+                "common_noise",  # This is a proxy for the mean field dependence, which can be different from the mean.
+            ]
+        ]
+        out = torch.cat(processes, dim=2)
+        # out = self._add_padding(out)
+
+        return out
+
+    def solve_for_z(
+        self,
+        approximator: FunctionApproximator,
+        brownian: torch.Tensor,
+        approximator_args: dict = None,
+    ):
+        _, drift_integral = self.set_drift_path()
+        terminal_condition = self.set_terminal_condition()
+
+        optimization_target = self.set_z_optimization_target(
+            terminal_condition, drift_integral, brownian
+        )
+        optimization_input = self.set_z_input()
+        approximator.minimize_over_sample(
+            optimization_input, optimization_target, **approximator_args
+        )
+
+    def solve_for_idiosyncratic_volatility(self, approximator_args: dict = {}):
+        self.solve_for_z(
+            self.z_approximator, self.filtration.idiosyncratic_noise, approximator_args
+        )
+
+    def solve_for_common_volatility(self, approximator_args: dict = {}):
+        self.solve_for_z(
+            self.z_zero_approximator, self.filtration.common_noise, approximator_args
+        )
+
+    def _calculate_volatility(
+        self, z_approximator: FunctionApproximator
+    ) -> torch.Tensor:
+        input = self.set_z_input()
+        z_hat = z_approximator.detached_call(input)
+        # z_hat = self._remove_padding(z_hat)
+        return z_hat
+
+    def generate_common_noise_volatility(self) -> torch.Tensor:
+        return self._calculate_volatility(self.z_zero_approximator)
+
+    def generate_idiosyncratic_noise_volatility(self) -> torch.Tensor:
+        return self._calculate_volatility(self.z_approximator)
+
+    def solve(self, approximator_args: dict):
+        super().solve(approximator_args)
+        self.solve_for_common_volatility(self.z_approximator_args)
+
+
 class ForwardBackwardSDE:
     """This class manipulates both forward and backward SDE objects in order to implement Picard iterations numerical scheme."""
 
@@ -420,6 +559,19 @@ class ForwardBackwardSDE:
 
         self.filtration.backward_volatility = damped_updated_backward_volatility
 
+        if type(self.backward_sde).__name__ == "CommonNoiseBackwardSDE":
+            updated_backward_common_volatility = (
+                self.backward_sde.generate_common_noise_volatility()
+            )
+            damped_updated_backward_common_volatility = self._damping_update(
+                current=self.filtration.backward_common_volatility,
+                update=updated_backward_common_volatility,
+            )
+
+            self.filtration.backward_common_volatility = (
+                damped_updated_backward_common_volatility
+            )
+
     def _single_picard_step(self, approximator_args: dict = {}):
         """Performs a single step of the Picard operator for the backward SDE.
 
@@ -460,6 +612,11 @@ class ForwardBackwardSDE:
         else:
             self.filtration.backward_volatility = backward_volatility
 
+        if type(self.backward_sde).__name__ == "CommonNoiseBackwardSDE":
+            self.filtration.backward_common_volatility = torch.ones_like(
+                self.filtration.brownian_process
+            )
+
     def _update_states(self):
         self._add_backward_process_to_filtration()
         self._add_backward_volatility_to_filtration()
@@ -498,6 +655,7 @@ class ForwardBackwardSDE:
             initial_backward_process, initial_backward_volatility
         )
         for i in range(number_of_iterations):
+            print(f"Picard Iteration {i}")
             self.iteration = i
             self._single_picard_step(approximator_args)
             self._update_states()

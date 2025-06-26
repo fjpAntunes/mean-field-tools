@@ -27,9 +27,12 @@ optimization_target = zero_drift_bsde.set_optimization_target(
     drift_integral=zero_drift_bsde.drift_integral,
 )
 
+time_length = len(TIME_DOMAIN)
+padding = zero_drift_bsde.padding_size
+
 
 def test_set_optimization_target_shape_zero_drift_case():
-    assert optimization_target.shape == (3, 101, 1)
+    assert optimization_target.shape == (3, time_length + padding, 1)
 
 
 def test_set_optimization_target_consistency_along_path():
@@ -59,7 +62,7 @@ optimization_target_2d = zero_drift_bsde_2d.set_optimization_target(
 
 
 def test_set_optimization_target_shape_zero_drift_2d_case():
-    assert optimization_target_2d.shape == (3, 101, 2)
+    assert optimization_target_2d.shape == (3, time_length + padding, 2)
 
 
 def test_set_optimization_target_consistency_along_path_2d():

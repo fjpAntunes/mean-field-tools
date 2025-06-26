@@ -3,7 +3,7 @@ from mean_field_tools.deep_bsde.forward_backward_sde import (
     NumericalForwardSDE,
     ForwardBackwardSDE,
 )
-from mean_field_tools.deep_bsde.function_approximator import OperatorApproximator
+from mean_field_tools.deep_bsde.function_approximator import PathDependentApproximator
 from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
 from mean_field_tools.deep_bsde.script.experiments.systemic_risk_common_noise_non_markovian.artist import (
     FunctionApproximatorArtist,
@@ -119,7 +119,7 @@ backward_sde.initialize_approximator(
 measure_flow = CommonNoiseMeasureFlow(filtration=FILTRATION)
 
 
-gru = OperatorApproximator(
+gru = PathDependentApproximator(
     input_size=FILTRATION.spatial_dimensions + 1,
 )
 

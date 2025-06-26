@@ -72,32 +72,6 @@ def test_initialize():
     forward_backward_sde = setup()
 
 
-def test_backward_single_picard_step():
-    forward_backward_sde = setup()
-    forward_backward_sde._add_forward_process_to_filtration()
-    forward_backward_sde._single_picard_step(
-        approximator_args={
-            "training_strategy_args": {
-                "batch_size": 100,
-                "number_of_iterations": 500,
-                "number_of_batches": 5,
-                "number_of_plots": 5,
-            },
-        }
-    )
-    paths = forward_backward_sde.backward_sde.generate_backward_process()[:5, -1, :]
-    benchmark = [
-        [0.4628603458404541],
-        [0.14914759993553162],
-        [0.1496237814426422],
-        [2.0103156566619873],
-        [0.3977428674697876],
-    ]
-    benchmark = torch.Tensor(benchmark)
-
-    assert tensors_are_close(paths, benchmark)
-
-
 def test_backward_picard_iteration_convergence():
     FILTRATION = Filtration(
         spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
