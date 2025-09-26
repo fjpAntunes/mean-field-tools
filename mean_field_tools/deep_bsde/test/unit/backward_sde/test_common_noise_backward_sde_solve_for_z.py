@@ -27,12 +27,14 @@ bsde = CommonNoiseBackwardSDE(
 )
 
 bsde.initialize_approximator()
+bsde.initialize_z_approximator()
 
 
 def mock_generate_backward_process():
     return FILTRATION.brownian_process
 
 
+FILTRATION.forward_process = FILTRATION.brownian_process
 bsde.generate_backward_process = mock_generate_backward_process
 
 

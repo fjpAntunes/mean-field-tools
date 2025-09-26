@@ -374,7 +374,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     ):
         number_of_spatial_processes = len(self.exogenous_process) - 1
         domain_dimensions = (
-            1 + number_of_spatial_processes * self.filtration.spatial_dimensions
+            1 + (number_of_spatial_processes + 1) * self.filtration.spatial_dimensions
         )
 
         self.z_approximator = PathDependentApproximator(
@@ -416,8 +416,8 @@ class CommonNoiseBackwardSDE(BackwardSDE):
 
         optimization_target = torch.cat(
             [
-                torch.zeros_like(optimization_target[:, 0, :].unsqueeze(1)),
                 optimization_target,
+                optimization_target[:, -1, :].unsqueeze(1).clone(),
             ],
             dim=1,
         )
