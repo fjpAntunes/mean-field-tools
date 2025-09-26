@@ -416,7 +416,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         optimization_target = torch.cat(
             [
                 optimization_target,
-                optimization_target[:, -1, :].unsqueeze(1).clone(),
+                optimization_target[:, -1, :].unsqueeze(1),
             ],
             dim=1,
         )
