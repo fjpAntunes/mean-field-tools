@@ -88,5 +88,5 @@ class CommonNoiseMeasureFlow(MeasureFlow):
         mean_field_parametrization = self.mean_approximator.detached_call(
             self.elicitability_input
         )
-
+        
         return mean_field_parametrization

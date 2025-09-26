@@ -10,7 +10,7 @@ class AbstractApproximator(nn.Module):
     def __init__(self):
 
         self.is_training = False
-
+        
         self.training_strategy_args = {
             "batch_size": 100,
             "number_of_iterations": 500,
@@ -184,17 +184,14 @@ class AbstractApproximator(nn.Module):
     ):
         if training_strategy is None:
             training_strategy = self._batch_sgd_training
-
-        if training_strategy_args is not {}:
-            self.training_strategy_args = training_strategy_args
-
+        
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
 
         if not self.is_training:
             self.training_setup()
 
-        training_strategy(**self.training_strategy_args)
+        training_strategy(**training_strategy_args)
 
         self.is_training = False
 
