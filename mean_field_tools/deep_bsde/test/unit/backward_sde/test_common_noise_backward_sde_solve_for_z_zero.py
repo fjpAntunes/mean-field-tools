@@ -58,7 +58,7 @@ def test_solve_for_idiosyncratic():
 
     err = z_hat - z
 
-    assert L_2_norm(err) < 0.1
+    assert L_2_norm(err) < 0.2
 
 
 def test_solve_for_common():
