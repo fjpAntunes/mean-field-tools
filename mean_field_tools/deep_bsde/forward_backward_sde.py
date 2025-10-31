@@ -198,7 +198,7 @@ class BackwardSDE:
         """
         number_of_spatial_processes = len(self.exogenous_process) - 1
         domain_dimensions = (
-            1 + number_of_spatial_processes * self.filtration.spatial_dimensions
+            1 + (number_of_spatial_processes + 1) * self.filtration.spatial_dimensions
         )
         self.y_approximator = FunctionApproximator(
             domain_dimension=domain_dimensions,
@@ -294,6 +294,16 @@ class BackwardSDE:
         processes = [
             self.filtration.__dict__.get(name) for name in self.exogenous_process
         ]
+        if self.filtration.forward_process is None:
+            initial_condition = torch.zeros_like(self.filtration.time_process)
+        else:
+            num_timesteps = len(self.filtration.time_domain)
+            initial_condition = self.filtration.forward_process[:, 0, :].repeat(
+                (1, num_timesteps, 1)
+            )
+
+        processes.append(initial_condition)
+
         out = torch.cat(processes, dim=2)
         out = self._add_padding(out)
 
