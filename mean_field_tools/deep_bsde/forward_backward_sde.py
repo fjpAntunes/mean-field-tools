@@ -298,8 +298,10 @@ class BackwardSDE:
             initial_condition = torch.zeros_like(self.filtration.time_process)
         else:
             num_timesteps = len(self.filtration.time_domain)
-            initial_condition = self.filtration.forward_process[:, 0, :].repeat(
-                (1, num_timesteps, 1)
+            initial_condition = (
+                self.filtration.forward_process[:, 0, :]
+                .unsqueeze(1)
+                .repeat((1, num_timesteps, 1))
             )
 
         processes.append(initial_condition)
@@ -383,8 +385,8 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         nn_args={},
     ):
         number_of_spatial_processes = len(self.exogenous_process) - 1
-        # Always (t, X_t, W^0_t)
-        domain_dimensions = 1 + 2 * self.filtration.spatial_dimensions
+        # Always (t, X_t, W^0_t, X_0)
+        domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
 
         self.z_approximator = PathDependentApproximator(
             domain_dimension=domain_dimensions,
@@ -444,6 +446,18 @@ class CommonNoiseBackwardSDE(BackwardSDE):
                 "common_noise",  # This is a proxy for the mean field dependence, which can be different from the mean.
             ]
         ]
+
+        if self.filtration.forward_process is None:
+            initial_condition = torch.zeros_like(self.filtration.time_process)
+        else:
+            num_timesteps = len(self.filtration.time_domain)
+            initial_condition = (
+                self.filtration.forward_process[:, 0, :]
+                .unsqueeze(1)
+                .repeat((1, num_timesteps, 1))
+            )
+
+        processes.append(initial_condition)
         out = torch.cat(processes, dim=2)
         # out = self._add_padding(out)
 

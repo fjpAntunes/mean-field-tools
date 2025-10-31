@@ -44,7 +44,8 @@ def test_postprocess():
     mock_device = MockDevice(type="cuda")
     mock_output = MockTensor(device=mock_device)
     processed_output = function_approximator.postprocess(
-        mock_output, training_status=False
+        mock_output,
+        # training_status=False
     )
 
     assert processed_output.device.type == "cpu"
