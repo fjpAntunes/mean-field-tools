@@ -21,8 +21,12 @@ FILTRATION = Filtration(
     seed=0,
 )
 
+FILTRATION.forward_process = FILTRATION.brownian_process
 
-def mean_variance_parametrization(paths):
+
+def mean_variance_parametrization(filtration: Filtration):
+
+    paths = filtration.forward_process
     mean = torch.mean(paths, dim=0)
     var = torch.var(paths, dim=0)
 
@@ -35,7 +39,7 @@ def mean_variance_parametrization(paths):
 
 def test_default_parameters():
     measure_flow = MeasureFlow(filtration=FILTRATION)
-    mean_field_parametrization = measure_flow.parameterize(FILTRATION.brownian_process)
+    mean_field_parametrization = measure_flow.parameterize(FILTRATION)
 
     deviation = L_2_norm(mean_field_parametrization)
     assert deviation < 5 * 1e-4
@@ -46,7 +50,7 @@ def test_changing_parametrization_method():
         filtration=FILTRATION, parametrization=mean_variance_parametrization
     )
 
-    mean_field_parametrization = measure_flow.parameterize(FILTRATION.brownian_process)
+    mean_field_parametrization = measure_flow.parameterize(FILTRATION)
 
     t = FILTRATION.time_process
     zero = torch.zeros_like(t)
