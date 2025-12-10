@@ -42,7 +42,9 @@ def test_set_elicitability_input():
 
 def test_parameterize_time_process():
     "Should evaluate to t"
-    conditional_mean = measure_flow.parameterize(FILTRATION.time_process)
+
+    FILTRATION.forward_process = FILTRATION.time_process
+    conditional_mean = measure_flow.parameterize(FILTRATION)
     t = FILTRATION.time_process
 
     deviation = conditional_mean - t
@@ -51,7 +53,8 @@ def test_parameterize_time_process():
 
 def test_parameterize():
     "Should evaluate to rho * common_noise"
-    conditional_mean = measure_flow.parameterize(FILTRATION.brownian_process)
+    FILTRATION.forward_process = FILTRATION.brownian_process
+    conditional_mean = measure_flow.parameterize(FILTRATION)
     rho = FILTRATION.common_noise_coefficient
     common_noise = FILTRATION.common_noise
 

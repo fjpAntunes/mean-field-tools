@@ -4,7 +4,8 @@ import torch
 from typing import Callable
 
 
-def path_average_along_time(paths: torch.Tensor) -> torch.Tensor:
+def forward_process_path_average_along_time(filtration: Filtration) -> torch.Tensor:
+    paths = filtration.forward_process
     average_along_time = torch.mean(paths, dim=0)
     one = torch.ones_like(paths)
     average_along_time = one * average_along_time
@@ -20,7 +21,7 @@ class MeasureFlow:
                 torch.Tensor,
             ],
             torch.Tensor,
-        ] = path_average_along_time,
+        ] = forward_process_path_average_along_time,
     ):
         self.filtration = filtration
         self.parametrization = parametrization
@@ -36,9 +37,9 @@ class MeasureFlow:
                 f"Parameterization shape [1] should match number of timesteps"
             )
 
-    def parameterize(self, paths: torch.Tensor):
+    def parameterize(self, filtration: Filtration):
 
-        parameterized_mean_field = self.parametrization(paths)
+        parameterized_mean_field = self.parametrization(filtration)
         self._validate_parametrization_shape(parameterized_mean_field)
         return parameterized_mean_field
 
@@ -81,12 +82,13 @@ class CommonNoiseMeasureFlow(MeasureFlow):
             self.elicitability_input, paths, **self.training_args
         )
 
-    def parameterize(self, paths: torch.Tensor):
+    def parameterize(self, filtration: Filtration):
         """Calculates conditional mean of `paths` using elicitability over the common noise."""
+        paths = filtration.forward_process
         self.elicitability_input = self._set_elicitability_input()
         self._elicit_mean_as_function_of_common_noise(paths)
         mean_field_parametrization = self.mean_approximator.detached_call(
             self.elicitability_input
         )
-        
+
         return mean_field_parametrization
