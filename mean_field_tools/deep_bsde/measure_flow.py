@@ -134,7 +134,7 @@ class CommonNoiseMeasureFlow(MeasureFlow):
             )
         else:
             if not isinstance(paths, list):
-                paths = [paths[:, :, i : i + 1] for i in range(paths.shape[2])]
+                paths = [paths] * len(self.mean_approximators)
             for approximator, target, training_args in zip(
                 self.mean_approximators, paths, self.training_args_list
             ):
