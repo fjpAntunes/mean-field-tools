@@ -102,3 +102,91 @@ def test_backward_picard_iteration_convergence():
     output = forward_backward_sde.filtration.backward_process[0, :, 0]
 
     assert torch.mean(output**2) + output.var() < 5 * 1e-3
+
+
+def test_per_variable_damping():
+    """Test that per-variable damping applies different damping functions to different variables."""
+    filtration = Filtration(
+        spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
+    )
+
+    forward_sde = AnalyticForwardSDE(
+        filtration=filtration,
+        functional_form=OU_FUNCTIONAL_FORM,
+    )
+
+    backward_sde = BackwardSDE(
+        terminal_condition_function=TERMINAL_CONDITION,
+        exogenous_process=["time_process", "forward_process"],
+        filtration=filtration,
+        drift=BACKWARD_DRIFT,
+    )
+    backward_sde.initialize_approximator()
+
+    damping_config = {
+        "forward_process": lambda i: 0.9,
+        "backward_process": lambda i: 0.0,
+    }
+
+    fbsde = ForwardBackwardSDE(
+        filtration=filtration,
+        forward_sde=forward_sde,
+        backward_sde=backward_sde,
+        damping=damping_config,
+    )
+    fbsde.iteration = 1
+
+    current = torch.ones(10)
+    update = torch.zeros(10)
+
+    # forward_process: coefficient=0.9 -> 0.9*current + 0.1*update = 0.9
+    result_fp = fbsde._damping_update(current, update, variable_name="forward_process")
+    assert torch.allclose(result_fp, torch.full((10,), 0.9))
+
+    # backward_process: coefficient=0.0 -> 0.0*current + 1.0*update = 0.0
+    result_bp = fbsde._damping_update(
+        current, update, variable_name="backward_process"
+    )
+    assert torch.allclose(result_bp, torch.zeros(10))
+
+    # forward_volatility: not specified, defaults to no damping -> pure update
+    result_fv = fbsde._damping_update(
+        current, update, variable_name="forward_volatility"
+    )
+    assert torch.allclose(result_fv, torch.zeros(10))
+
+
+def test_single_callable_damping_backward_compatible():
+    """Verify single callable damping still works uniformly across all variables."""
+    filtration = Filtration(
+        spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=100, seed=0
+    )
+
+    forward_sde = AnalyticForwardSDE(
+        filtration=filtration,
+        functional_form=OU_FUNCTIONAL_FORM,
+    )
+
+    backward_sde = BackwardSDE(
+        terminal_condition_function=TERMINAL_CONDITION,
+        exogenous_process=["time_process", "forward_process"],
+        filtration=filtration,
+        drift=BACKWARD_DRIFT,
+    )
+    backward_sde.initialize_approximator()
+
+    fbsde = ForwardBackwardSDE(
+        filtration=filtration,
+        forward_sde=forward_sde,
+        backward_sde=backward_sde,
+        damping=lambda i: 0.5,
+    )
+    fbsde.iteration = 0
+
+    current = torch.ones(10)
+    update = torch.zeros(10)
+
+    # All variables should get coefficient=0.5 -> 0.5*1 + 0.5*0 = 0.5
+    for var in ("forward_process", "backward_process", "forward_volatility"):
+        result = fbsde._damping_update(current, update, variable_name=var)
+        assert torch.allclose(result, torch.full((10,), 0.5))
