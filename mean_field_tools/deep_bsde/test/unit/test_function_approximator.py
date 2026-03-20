@@ -176,3 +176,74 @@ def test_batch_gradient_with_respect_to_input_2():
     test = approximator.grad(point_sample)
     benchmark = [[2, 7], [0, 5]]
     assert test.tolist() == benchmark
+
+
+def _make_sample_and_target():
+    """Helper to create sample/target tensors for warm_start tests."""
+    sample = torch.randn(50, 10, 2)
+    target = torch.randn(50, 10, 1)
+    return sample, target
+
+
+def test_cold_start_resets_optimizer():
+    """With warm_start=False (default), optimizer and scheduler reset between calls."""
+    approximator = FunctionApproximator(
+        domain_dimension=2,
+        output_dimension=1,
+        number_of_layers=2,
+        number_of_nodes=8,
+        warm_start=False,
+    )
+    sample, target = _make_sample_and_target()
+    training_args = {
+        "training_strategy_args": {
+            "batch_size": 20,
+            "number_of_iterations": 10,
+            "number_of_batches": 1,
+        }
+    }
+
+    approximator.minimize_over_sample(sample, target, **training_args)
+    # After first call, optimizer exists but is_training is False
+    assert approximator.is_training is False
+
+    # Second call should create a fresh optimizer
+    approximator.minimize_over_sample(sample, target, **training_args)
+
+    # Verify the scheduler restarted from epoch 0 + steps taken in this call
+    expected_last_epoch = 10  # number_of_iterations // number_of_batches
+    assert approximator.scheduler.last_epoch == expected_last_epoch
+
+
+def test_warm_start_preserves_optimizer():
+    """With warm_start=True, optimizer and scheduler persist between calls."""
+    approximator = FunctionApproximator(
+        domain_dimension=2,
+        output_dimension=1,
+        number_of_layers=2,
+        number_of_nodes=8,
+        warm_start=True,
+    )
+    sample, target = _make_sample_and_target()
+    training_args = {
+        "training_strategy_args": {
+            "batch_size": 20,
+            "number_of_iterations": 10,
+            "number_of_batches": 1,
+        }
+    }
+
+    approximator.minimize_over_sample(sample, target, **training_args)
+    last_epoch_after_first = approximator.scheduler.last_epoch
+    assert last_epoch_after_first > 0
+
+    # Verify optimizer has accumulated state (Adam moment estimates)
+    optimizer_state = approximator.optimizer.state
+    assert len(optimizer_state) > 0
+
+    approximator.minimize_over_sample(sample, target, **training_args)
+
+    # Scheduler should have continued from where it left off
+    assert approximator.scheduler.last_epoch > last_epoch_after_first
+    # Optimizer state should still be populated
+    assert len(approximator.optimizer.state) > 0

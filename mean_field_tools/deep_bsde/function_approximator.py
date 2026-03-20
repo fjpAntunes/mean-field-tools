@@ -10,7 +10,8 @@ class AbstractApproximator(nn.Module):
     def __init__(self):
 
         self.is_training = False
-        
+        self.optimizer = None
+
         self.training_strategy_args = {
             "batch_size": 100,
             "number_of_iterations": 500,
@@ -93,12 +94,13 @@ class AbstractApproximator(nn.Module):
     def training_setup(self):
         """Pre-training object state configuration."""
         self.is_training = True
-        self.optimizer = self.sgd_parameters["optimizer"](
-            self.parameters(), **self.sgd_parameters["optimizer_params"]
-        )
-        self.scheduler = self.sgd_parameters["scheduler"](
-            self.optimizer, **self.sgd_parameters["scheduler_params"]
-        )
+        if self.optimizer is None or not self.warm_start:
+            self.optimizer = self.sgd_parameters["optimizer"](
+                self.parameters(), **self.sgd_parameters["optimizer_params"]
+            )
+            self.scheduler = self.sgd_parameters["scheduler"](
+                self.optimizer, **self.sgd_parameters["scheduler_params"]
+            )
         self.loss_history = []
         self.loss_recent_history = []
         return None
@@ -215,9 +217,11 @@ class FunctionApproximator(AbstractApproximator):
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
         device="cpu",
+        warm_start: bool = False,
     ):
 
         super(FunctionApproximator, self).__init__()
+        self.warm_start = warm_start
         self.domain_dimension = domain_dimension
         self.output_dimension = output_dimension
         self.sgd_parameters = {
@@ -266,8 +270,10 @@ class PathDependentApproximator(AbstractApproximator):
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
         device="cpu",
+        warm_start: bool = False,
     ):
         super(PathDependentApproximator, self).__init__()
+        self.warm_start = warm_start
         self.domain_dimension = domain_dimension
         self.output_dimension = output_dimension
         self.sgd_parameters = {
