@@ -6,7 +6,7 @@ from mean_field_tools.deep_bsde.function_approximator import (
 from mean_field_tools.deep_bsde.filtration import Filtration, CommonNoiseFiltration
 from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
-from typing import Callable, List
+from typing import Callable, Dict, List, Union
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
@@ -501,13 +501,24 @@ class CommonNoiseBackwardSDE(BackwardSDE):
 class ForwardBackwardSDE:
     """This class manipulates both forward and backward SDE objects in order to implement Picard iterations numerical scheme."""
 
+    DAMPING_VARIABLES = (
+        "forward_process",
+        "forward_volatility",
+        "forward_mean_field",
+        "backward_process",
+        "backward_volatility",
+        "backward_common_volatility",
+    )
+
     def __init__(
         self,
         filtration: Filtration,
         forward_sde: ForwardSDE,
         backward_sde: BackwardSDE,
         measure_flow: MeasureFlow = None,
-        damping: Callable[[int], float] = lambda i: 0,
+        damping: Union[
+            Callable[[int], float], Dict[str, Callable[[int], float]]
+        ] = lambda i: 0,
     ):
         self.filtration = filtration
         self.forward_sde = forward_sde
@@ -516,11 +527,24 @@ class ForwardBackwardSDE:
         self.damping = damping
         self.iteration = 0
 
-    def _damping_update(self, current, update):
+        if callable(damping):
+            self._damping_functions = {var: damping for var in self.DAMPING_VARIABLES}
+        elif isinstance(damping, dict):
+            invalid_keys = set(damping.keys()) - set(self.DAMPING_VARIABLES)
+            if invalid_keys:
+                raise ValueError(f"Invalid damping variable names: {invalid_keys}")
+            no_damping = lambda i: 0
+            self._damping_functions = {
+                var: damping.get(var, no_damping) for var in self.DAMPING_VARIABLES
+            }
+        else:
+            raise TypeError("damping must be a callable or a dict of callables")
+
+    def _damping_update(self, current, update, variable_name: str):
         if current is None:
             return update
 
-        coefficient = self.damping(self.iteration)
+        coefficient = self._damping_functions[variable_name](self.iteration)
 
         damped_update = coefficient * current + (1 - coefficient) * update
 
@@ -531,6 +555,7 @@ class ForwardBackwardSDE:
         damped_update_forward_process = self._damping_update(
             current=self.filtration.forward_process,
             update=updated_forward_process,
+            variable_name="forward_process",
         )
         self.filtration.forward_process = damped_update_forward_process
 
@@ -539,6 +564,7 @@ class ForwardBackwardSDE:
         damped_update_forward_volatility = self._damping_update(
             current=self.filtration.forward_volatility,
             update=updated_forward_volatility,
+            variable_name="forward_volatility",
         )
         self.filtration.forward_volatility = damped_update_forward_volatility
 
@@ -548,6 +574,7 @@ class ForwardBackwardSDE:
             damped_update_forward_mean_field = self._damping_update(
                 current=self.filtration.forward_mean_field,
                 update=updated_forward_mean_field,
+                variable_name="forward_mean_field",
             )
             self.filtration.forward_mean_field = damped_update_forward_mean_field
 
@@ -556,6 +583,7 @@ class ForwardBackwardSDE:
         damped_update_backward_process = self._damping_update(
             current=self.filtration.backward_process,
             update=updated_backward_process,
+            variable_name="backward_process",
         )
 
         self.filtration.backward_process = damped_update_backward_process
@@ -565,6 +593,7 @@ class ForwardBackwardSDE:
         damped_updated_backward_volatility = self._damping_update(
             current=self.filtration.backward_volatility,
             update=updated_backward_volatility,
+            variable_name="backward_volatility",
         )
 
         self.filtration.backward_volatility = damped_updated_backward_volatility
@@ -576,6 +605,7 @@ class ForwardBackwardSDE:
             damped_updated_backward_common_volatility = self._damping_update(
                 current=self.filtration.backward_common_volatility,
                 update=updated_backward_common_volatility,
+                variable_name="backward_common_volatility",
             )
 
             self.filtration.backward_common_volatility = (
