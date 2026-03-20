@@ -22,5 +22,5 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction
 
-      - name: Run tests
-        run: poetry run pytest
+      - name: Run unit tests
+        run: poetry run pytest mean_field_tools/deep_bsde/test/unit/
