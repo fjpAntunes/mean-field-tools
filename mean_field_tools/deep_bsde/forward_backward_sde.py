@@ -369,6 +369,48 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         self.filtration = filtration
         self.z_approximator_args = {}
 
+    def initialize_approximator(self, nn_args: dict = {}):
+        number_of_spatial_processes = len(self.exogenous_process) - 1
+        domain_dimensions = (
+            1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+        )
+        self.y_approximator = PathDependentApproximator(
+            domain_dimension=domain_dimensions,
+            output_dimension=self.number_of_dimensions,
+            **nn_args,
+        )
+        return self.y_approximator
+
+    def generate_backward_volatility(self):
+        return self.generate_idiosyncratic_noise_volatility()
+
+    def calculate_volatility_integral(self) -> torch.Tensor:
+        # Idiosyncratic component: Z_t dW_t
+        z = self._calculate_volatility(self.z_approximator)[:, :-1, :]
+        idiosyncratic_increments = (
+            self.filtration.idiosyncratic_noise[:, 1:, :]
+            - self.filtration.idiosyncratic_noise[:, :-1, :]
+        )
+        idiosyncratic_terms = z * idiosyncratic_increments
+
+        # Common noise component: Z^0_t dW^0_t
+        z_zero = self._calculate_volatility(self.z_zero_approximator)[:, :-1, :]
+        common_increments = (
+            self.filtration.common_noise[:, 1:, :]
+            - self.filtration.common_noise[:, :-1, :]
+        )
+        common_terms = z_zero * common_increments
+
+        # Sum and compute backward integral
+        increments = idiosyncratic_terms + common_terms
+        total = torch.sum(increments, dim=1).unsqueeze(1)
+        self.volatility_integral = total - torch.cumsum(increments, dim=1)
+        terminal = torch.zeros_like(self.volatility_integral[:, -1:, :])
+        self.volatility_integral = torch.cat(
+            [self.volatility_integral, terminal], dim=1
+        )
+        return self.volatility_integral
+
     def initialize_z_approximator(
         self,
         nn_args={},
