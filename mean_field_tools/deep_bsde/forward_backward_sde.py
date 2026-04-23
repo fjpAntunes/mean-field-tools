@@ -381,8 +381,8 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         )
         return self.y_approximator
 
-    def generate_backward_volatility(self):
-        return self.generate_idiosyncratic_noise_volatility()
+    #def generate_backward_volatility(self):
+    #    return self.generate_idiosyncratic_noise_volatility()
 
     def calculate_volatility_integral(self) -> torch.Tensor:
         # Idiosyncratic component: Z_t dW_t
@@ -538,6 +538,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     def solve(self, approximator_args: dict):
         super().solve(approximator_args)
         self.solve_for_common_volatility(self.z_approximator_args)
+        #self.solve_for_idiosyncratic_volatility(self.z_approximator_args)
 
 
 class ForwardBackwardSDE:
