@@ -212,7 +212,7 @@ class FunctionApproximator(AbstractApproximator):
         number_of_layers=5,
         number_of_nodes=36,
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
-        optimizer=optim.Adam,
+        optimizer=optim.AdamW,
         optimizer_params={"lr": 0.005},
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
@@ -265,7 +265,7 @@ class PathDependentApproximator(AbstractApproximator):
         number_of_layers=1,
         number_of_nodes=2,
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
-        optimizer=optim.Adam,
+        optimizer=optim.AdamW,
         optimizer_params={"lr": 0.005},
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
