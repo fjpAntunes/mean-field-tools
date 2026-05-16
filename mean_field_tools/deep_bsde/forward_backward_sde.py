@@ -374,16 +374,20 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         self.filtration = filtration
         self.z_approximator_args = {}
 
-    def initialize_approximator(self, nn_args: dict = {}):
-        number_of_spatial_processes = len(self.exogenous_process) - 1
-        domain_dimensions = (
-            1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
-        )
-        self.y_approximator = PathDependentApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
+    def initialize_approximator(self, nn_args: dict = {}, approximator : AbstractApproximator = None):
+        if approximator is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            domain_dimensions = (
+                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+            )
+            self.y_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+
+        else:
+            self.y_approximator = approximator
         return self.y_approximator
 
     def generate_backward_volatility(self):
