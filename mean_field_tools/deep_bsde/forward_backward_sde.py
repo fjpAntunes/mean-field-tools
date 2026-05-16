@@ -513,7 +513,6 @@ class CommonNoiseBackwardSDE(BackwardSDE):
                 .repeat((1, num_timesteps, 1))
             )
 
-        processes.append(initial_condition)
         out = torch.cat(processes, dim=2)
         # out = self._add_padding(out)
 
