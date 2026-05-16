@@ -39,15 +39,11 @@ class ConstantApproximator:
         self.shape_like = shape_like
 
     def detached_call(self, input):
-        return self.value * torch.ones(
-            input.shape[0], self.shape_like.shape[1], 1
-        )
+        return self.value * torch.ones(input.shape[0], self.shape_like.shape[1], 1)
 
 
 bsde.z_approximator = ConstantApproximator(Z_VAL, FILTRATION.brownian_process)
-bsde.z_zero_approximator = ConstantApproximator(
-    Z_ZERO_VAL, FILTRATION.brownian_process
-)
+bsde.z_zero_approximator = ConstantApproximator(Z_ZERO_VAL, FILTRATION.brownian_process)
 
 
 def test_volatility_integral_shape():

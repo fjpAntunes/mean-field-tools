@@ -186,7 +186,7 @@ class AbstractApproximator(nn.Module):
     ):
         if training_strategy is None:
             training_strategy = self._batch_sgd_training
-        
+
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
 
@@ -305,6 +305,8 @@ class PathDependentApproximator(AbstractApproximator):
             self.device
         )
         out, _ = self.gru(self.x, h0)
+
+        out = self.activation(out)
 
         out = self.output(out)
 
