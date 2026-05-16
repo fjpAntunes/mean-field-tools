@@ -374,7 +374,23 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         self.filtration = filtration
         self.z_approximator_args = {}
 
-    def initialize_approximator(self, nn_args: dict = {}, approximator : AbstractApproximator = None):
+    def _set_exogenous_process(self, exogenous_process_list: list):
+        for process in exogenous_process_list:
+            if process not in [
+                "time_process",
+                "brownian_process",
+                "forward_process",
+                "common_noise",
+            ]:
+                raise ValueError(
+                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process", "common_noise"'
+                )
+
+        self.exogenous_process = exogenous_process_list
+
+    def initialize_approximator(
+        self, nn_args: dict = {}, approximator: AbstractApproximator = None
+    ):
         if approximator is None:
             number_of_spatial_processes = len(self.exogenous_process) - 1
             domain_dimensions = (
