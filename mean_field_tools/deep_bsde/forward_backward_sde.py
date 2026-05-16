@@ -1,12 +1,13 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import (
+    AbstractApproximator,
     FunctionApproximator,
     PathDependentApproximator,
 )
 from mean_field_tools.deep_bsde.filtration import Filtration, CommonNoiseFiltration
 from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
-from typing import Callable, List
+from typing import Callable, List, Tuple
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
@@ -189,23 +190,27 @@ class BackwardSDE:
             self.number_of_dimensions = number_of_dimensions
 
     def initialize_approximator(
-        self, nn_args: dict = {}
+        self,
+        nn_args: dict = {},
+        approximator: AbstractApproximator = None,
     ):  # Maybe we could just pass a FunctionApproximator object on initialization
         r"""Initializes FunctionApproximator neural net class to use in the elicitability solver.
 
         Args:
             nn_args (dict, optional): Optional args for FunctionApproximator class. Defaults to {}.
         """
-        number_of_spatial_processes = len(self.exogenous_process) - 1
-        domain_dimensions = (
-            1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
-        )
-        self.y_approximator = FunctionApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
-
+        if approximator is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            domain_dimensions = (
+                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+            )
+            self.y_approximator = FunctionApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+        else:
+            self.y_approximator = approximator
         return self.y_approximator
 
     def generate_backward_process(self):
@@ -407,22 +412,29 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     def initialize_z_approximator(
         self,
         nn_args={},
+        approximators: Tuple[AbstractApproximator, AbstractApproximator] = None,
     ):
-        number_of_spatial_processes = len(self.exogenous_process) - 1
-        # Always (t, X_t, W^0_t, X_0)
-        domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
 
-        self.z_approximator = PathDependentApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
+        if approximators is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            # Always (t, X_t, W^0_t, X_0)
+            domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
 
-        self.z_zero_approximator = PathDependentApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
+            self.z_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+
+            self.z_zero_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+        else:
+            self.z_approximator = approximators[0]
+            self.z_zero_approximator = approximators[1]
+
         return self.z_approximator, self.z_zero_approximator
 
     def _check_if_common_noise_filtration(self):
