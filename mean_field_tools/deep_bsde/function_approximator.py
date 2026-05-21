@@ -322,9 +322,11 @@ class HybridApproximator(AbstractApproximator):
         output_dimension,
         number_of_layers=1,
         number_of_nodes=2,
+        gru_hidden=2,
+        gru_layers=1,
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
         optimizer=optim.AdamW,
-        optimizer_params={"lr": 0.005},
+        optimizer_params={"lr": 0.0005},
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
         device="cpu",
@@ -346,16 +348,21 @@ class HybridApproximator(AbstractApproximator):
         self.number_of_layers = number_of_layers
         self.number_of_nodes = number_of_nodes
 
+        self.gru_layers = gru_layers
+        self.gru_hidden = gru_hidden
+
         self.device = device
 
         self.input = nn.Linear(self.markov_dimension, number_of_nodes).to(self.device)
 
-        self.bridge = nn.Linear(2 * number_of_nodes, number_of_nodes).to(self.device)
+        self.bridge = nn.Linear(number_of_nodes + gru_hidden, number_of_nodes).to(
+            self.device
+        )
 
         self.gru = nn.GRU(
             self.path_dependent_dimention,
-            number_of_nodes,
-            number_of_layers,
+            gru_hidden,
+            gru_layers,
             batch_first=True,
         ).to(self.device)
 
@@ -381,9 +388,9 @@ class HybridApproximator(AbstractApproximator):
 
         path_dependent = self.x[:, :, self.markov_dimension :]
 
-        h0 = torch.zeros(
-            self.number_of_layers, path_dependent.size(0), self.number_of_nodes
-        ).to(self.device)
+        h0 = torch.zeros(self.gru_layers, path_dependent.size(0), self.gru_hidden).to(
+            self.device
+        )
         out_gru, _ = self.gru(path_dependent, h0)
         out_gru = self.activation(out_gru)
 
@@ -391,7 +398,7 @@ class HybridApproximator(AbstractApproximator):
         out = self.activation(self.bridge(out))
 
         for layer in self.hidden:
-            out = self.activation(layer(out))
+            out = self.activation(layer(out) + out)
 
         out = self.output(out)
 
