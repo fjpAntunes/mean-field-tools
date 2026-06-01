@@ -68,10 +68,15 @@ class NumericalForwardSDE(ForwardSDE):
 
     def calculate_ito_integral(self):
         initial = self._initial_integral_term()
-        vol = self.volatility(self.filtration)[:, :-1, :]
+        vol = self.volatility(self.filtration)
         dBt = self.filtration.brownian_increments
 
-        ito_integral = torch.cat([initial, torch.cumsum(vol * dBt, axis=1)], dim=1)
+        if vol.ndim == 4:
+            increments = torch.einsum("nlij,nlj->nli", vol[:, :-1], dBt)
+        else:
+            increments = vol[:, :-1, :] * dBt
+
+        ito_integral = torch.cat([initial, torch.cumsum(increments, axis=1)], dim=1)
 
         return ito_integral
 
@@ -215,6 +220,16 @@ class BackwardSDE:
         return out
 
     def generate_backward_volatility(self):
+        if (
+            "forward_process" in self.exogenous_process
+            and self.filtration.forward_volatility is not None
+            and self.filtration.forward_volatility.ndim == 4
+        ):
+            raise NotImplementedError(
+                "Matrix (rank-4) forward volatility is not supported in the BackwardSDE "
+                "autodiff path. Use CommonNoiseBackwardSDE with z_is_matrix=True instead."
+            )
+
         input = self.set_approximator_input()
 
         grad_y_wrt_x = self.y_approximator.grad(input)[
@@ -358,6 +373,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         exogenous_process=["time_process", "brownian_process"],
         drift: filtrationMeasurableFunction = zero_function,  # Callable over tensors of shape (num_paths, path_length, time+spatial_dimension).
         number_of_dimensions: int = None,
+        z_is_matrix: bool = False,
     ):
         super().__init__(
             terminal_condition_function,
@@ -368,24 +384,27 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         )
         self.filtration = filtration
         self.z_approximator_args = {}
+        self.z_is_matrix = z_is_matrix
 
     def initialize_z_approximator(
         self,
         nn_args={},
     ):
-        number_of_spatial_processes = len(self.exogenous_process) - 1
         # Always (t, X_t, W^0_t, X_0)
         domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
 
+        d = self.number_of_dimensions
+        z_output_dimension = d * d if self.z_is_matrix else d
+
         self.z_approximator = PathDependentApproximator(
             domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
+            output_dimension=z_output_dimension,
             **nn_args,
         )
 
         self.z_zero_approximator = PathDependentApproximator(
             domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
+            output_dimension=z_output_dimension,
             **nn_args,
         )
         return self.z_approximator, self.z_zero_approximator
@@ -406,13 +425,18 @@ class CommonNoiseBackwardSDE(BackwardSDE):
 
         backward_delta = backward_process[:, 1:, :] - backward_process[:, :-1, :]
 
-        optimization_target = (backward_delta / self.filtration.dt) + self.drift_path[
-            :, :-1, :
-        ]
+        residual = (backward_delta / self.filtration.dt) + self.drift_path[:, :-1, :]
 
         brownian_delta = brownian_motion[:, 1:, :] - brownian_motion[:, :-1, :]
 
-        optimization_target = optimization_target * brownian_delta
+        if self.z_is_matrix:
+            # outer product: (N, L-1, d) x (N, L-1, d) -> (N, L-1, d, d), then flatten
+            outer = torch.einsum("nli,nlj->nlij", residual, brownian_delta)
+            optimization_target = outer.reshape(
+                outer.shape[0], outer.shape[1], self.number_of_dimensions**2
+            )
+        else:
+            optimization_target = residual * brownian_delta
 
         optimization_target = torch.cat(
             [
@@ -421,8 +445,6 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             ],
             dim=1,
         )
-
-        # optimization_target = self._add_padding(optimization_target)
 
         return optimization_target
 
@@ -484,8 +506,32 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     ) -> torch.Tensor:
         input = self.set_z_input()
         z_hat = z_approximator.detached_call(input)
-        # z_hat = self._remove_padding(z_hat)
+        if self.z_is_matrix:
+            d = self.number_of_dimensions
+            z_hat = z_hat.reshape(*z_hat.shape[:-1], d, d)
         return z_hat
+
+    def calculate_volatility_integral(self) -> torch.Tensor:
+        z = self.generate_idiosyncratic_noise_volatility()
+        z0 = self.generate_common_noise_volatility()
+        idio = self.filtration.idiosyncratic_noise_increments
+        common = self.filtration.common_noise_increments
+
+        if z.ndim == 4:
+            idio_term = torch.einsum("nlij,nlj->nli", z[:, :-1], idio)
+            common_term = torch.einsum("nlij,nlj->nli", z0[:, :-1], common)
+        else:
+            idio_term = z[:, :-1, :] * idio
+            common_term = z0[:, :-1, :] * common
+
+        increments = idio_term + common_term
+        total = torch.sum(increments, dim=1).unsqueeze(1)
+        self.volatility_integral = total - torch.cumsum(increments, dim=1)
+        terminal = torch.zeros_like(self.volatility_integral[:, -1:, :])
+        self.volatility_integral = torch.cat(
+            [self.volatility_integral, terminal], dim=1
+        )
+        return self.volatility_integral
 
     def generate_common_noise_volatility(self) -> torch.Tensor:
         return self._calculate_volatility(self.z_zero_approximator)
@@ -493,8 +539,15 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     def generate_idiosyncratic_noise_volatility(self) -> torch.Tensor:
         return self._calculate_volatility(self.z_approximator)
 
+    def generate_backward_volatility(self) -> torch.Tensor:
+        if self.z_is_matrix:
+            return self.generate_idiosyncratic_noise_volatility()
+        return super().generate_backward_volatility()
+
     def solve(self, approximator_args: dict):
         super().solve(approximator_args)
+        if self.z_is_matrix:
+            self.solve_for_idiosyncratic_volatility(self.z_approximator_args)
         self.solve_for_common_volatility(self.z_approximator_args)
 
 
@@ -646,16 +699,27 @@ class ForwardBackwardSDE:
             self.filtration.backward_process = backward_process
 
         if backward_volatility is None:
-            self.filtration.backward_volatility = torch.ones_like(
-                self.filtration.brownian_process
-            )
+            bp = self.filtration.brownian_process
+            if (
+                type(self.backward_sde).__name__ == "CommonNoiseBackwardSDE"
+                and self.backward_sde.z_is_matrix
+            ):
+                d = self.backward_sde.number_of_dimensions
+                self.filtration.backward_volatility = torch.ones(*bp.shape[:-1], d, d)
+            else:
+                self.filtration.backward_volatility = torch.ones_like(bp)
         else:
             self.filtration.backward_volatility = backward_volatility
 
         if type(self.backward_sde).__name__ == "CommonNoiseBackwardSDE":
-            self.filtration.backward_common_volatility = torch.ones_like(
-                self.filtration.brownian_process
-            )
+            bp = self.filtration.brownian_process
+            if self.backward_sde.z_is_matrix:
+                d = self.backward_sde.number_of_dimensions
+                self.filtration.backward_common_volatility = torch.ones(
+                    *bp.shape[:-1], d, d
+                )
+            else:
+                self.filtration.backward_common_volatility = torch.ones_like(bp)
 
     def _update_states(self):
         self._add_backward_process_to_filtration()

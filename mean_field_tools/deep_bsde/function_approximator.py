@@ -58,6 +58,28 @@ class AbstractApproximator(nn.Module):
         gradient = torch.autograd.grad(y, x, aux_tensor, create_graph=create_graph)[0]
         return gradient
 
+    def jacobian(self, x: torch.Tensor) -> torch.Tensor:
+        """Computes the full Jacobian of the network output with respect to x.
+
+        Args:
+            x: shape (N, L, d_in)
+
+        Returns:
+            shape (N, L, d_out, d_in)
+        """
+        x = x.detach().requires_grad_(True)
+        y = self(x)  # (N, L, d_out)
+        d_out = y.shape[-1]
+        d_in = x.shape[-1]
+        rows = []
+        for k in range(d_out):
+            seed = torch.zeros_like(y)
+            seed[..., k] = 1.0
+            (grad_k,) = torch.autograd.grad(y, x, seed, create_graph=False)
+            rows.append(grad_k)  # (N, L, d_in)
+        # stack along new axis -> (N, L, d_out, d_in)
+        return torch.stack(rows, dim=-2)
+
     def detached_call(self, x):
         return self.forward(x).detach()
 
@@ -186,7 +208,7 @@ class AbstractApproximator(nn.Module):
     ):
         if training_strategy is None:
             training_strategy = self._batch_sgd_training
-        
+
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
 
