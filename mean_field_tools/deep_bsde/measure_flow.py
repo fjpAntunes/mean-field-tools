@@ -95,17 +95,17 @@ class CommonNoiseMeasureFlow(MeasureFlow):
         if training_args_list is None:
             training_args_list = [{}] * n_networks
 
-        assert len(nn_args_list) == n_networks, (
-            f"nn_args_list length {len(nn_args_list)} != n_networks {n_networks}"
-        )
-        assert len(training_args_list) == n_networks, (
-            f"training_args_list length {len(training_args_list)} != n_networks {n_networks}"
-        )
+        assert (
+            len(nn_args_list) == n_networks
+        ), f"nn_args_list length {len(nn_args_list)} != n_networks {n_networks}"
+        assert (
+            len(training_args_list) == n_networks
+        ), f"training_args_list length {len(training_args_list)} != n_networks {n_networks}"
 
         if approximators is not None:
-            assert len(approximators) == n_networks, (
-                f"approximators length {len(approximators)} != n_networks {n_networks}"
-            )
+            assert (
+                len(approximators) == n_networks
+            ), f"approximators length {len(approximators)} != n_networks {n_networks}"
             self.mean_approximators = list(approximators)
         else:
             domain_dimensions = 1 + self.filtration.spatial_dimensions

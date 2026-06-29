@@ -186,7 +186,7 @@ class AbstractApproximator(nn.Module):
     ):
         if training_strategy is None:
             training_strategy = self._batch_sgd_training
-        
+
         training_strategy_args["input"] = sample
         training_strategy_args["target"] = target
 
@@ -212,7 +212,7 @@ class FunctionApproximator(AbstractApproximator):
         number_of_layers=5,
         number_of_nodes=36,
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
-        optimizer=optim.Adam,
+        optimizer=optim.AdamW,
         optimizer_params={"lr": 0.005},
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
@@ -265,7 +265,7 @@ class PathDependentApproximator(AbstractApproximator):
         number_of_layers=1,
         number_of_nodes=2,
         scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
-        optimizer=optim.Adam,
+        optimizer=optim.AdamW,
         optimizer_params={"lr": 0.005},
         scheduler=optim.lr_scheduler.StepLR,
         scheduler_params={"step_size": 5, "gamma": 0.9997},
@@ -304,7 +304,101 @@ class PathDependentApproximator(AbstractApproximator):
         h0 = torch.zeros(self.number_of_layers, x.size(0), self.number_of_nodes).to(
             self.device
         )
+
         out, _ = self.gru(self.x, h0)
+        out = self.activation(out)
+
+        out = self.output(out)
+
+        out = self.postprocess(out)
+        return out
+
+
+class HybridApproximator(AbstractApproximator):
+    def __init__(
+        self,
+        markov_dimension,
+        path_dependent_dimention,
+        output_dimension,
+        number_of_layers=1,
+        number_of_nodes=2,
+        gru_hidden=2,
+        gru_layers=1,
+        scoring=lambda x, y: (x - y) ** 2,  # Function to be minimized over sample
+        optimizer=optim.AdamW,
+        optimizer_params={"lr": 0.0005},
+        scheduler=optim.lr_scheduler.StepLR,
+        scheduler_params={"step_size": 5, "gamma": 0.9997},
+        device="cpu",
+        warm_start: bool = False,
+    ):
+        super().__init__()
+        self.warm_start = warm_start
+
+        self.markov_dimension = markov_dimension
+        self.path_dependent_dimention = path_dependent_dimention
+        self.output_dimension = output_dimension
+        self.sgd_parameters = {
+            "optimizer": optimizer,
+            "optimizer_params": optimizer_params,
+            "scheduler": scheduler,
+            "scheduler_params": scheduler_params,
+        }
+
+        self.number_of_layers = number_of_layers
+        self.number_of_nodes = number_of_nodes
+
+        self.gru_layers = gru_layers
+        self.gru_hidden = gru_hidden
+
+        self.device = device
+
+        self.input = nn.Linear(self.markov_dimension, number_of_nodes).to(self.device)
+
+        self.bridge = nn.Linear(number_of_nodes + gru_hidden, number_of_nodes).to(
+            self.device
+        )
+
+        self.gru = nn.GRU(
+            self.path_dependent_dimention,
+            gru_hidden,
+            gru_layers,
+            batch_first=True,
+        ).to(self.device)
+
+        self.hidden = nn.ModuleList(
+            [
+                nn.Linear(number_of_nodes, number_of_nodes).to(self.device)
+                for _ in range(number_of_layers - 1)
+            ]
+        )
+
+        self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
+
+        self.activation = nn.SiLU()
+
+        self.scoring = scoring
+
+    def forward(self, x):
+        self.x = self.preprocess(x)
+
+        markov = self.x[:, :, : self.markov_dimension]
+
+        out_markov = self.activation(self.input(markov))
+
+        path_dependent = self.x[:, :, self.markov_dimension :]
+
+        h0 = torch.zeros(self.gru_layers, path_dependent.size(0), self.gru_hidden).to(
+            self.device
+        )
+        out_gru, _ = self.gru(path_dependent, h0)
+        out_gru = self.activation(out_gru)
+
+        out = torch.cat([out_markov, out_gru], dim=2)
+        out = self.activation(self.bridge(out))
+
+        for layer in self.hidden:
+            out = self.activation(layer(out) + out)
 
         out = self.output(out)
 

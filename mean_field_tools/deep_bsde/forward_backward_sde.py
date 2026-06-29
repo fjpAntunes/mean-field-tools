@@ -1,5 +1,6 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import (
+    AbstractApproximator,
     FunctionApproximator,
     PathDependentApproximator,
 )
@@ -189,23 +190,27 @@ class BackwardSDE:
             self.number_of_dimensions = number_of_dimensions
 
     def initialize_approximator(
-        self, nn_args: dict = {}
+        self,
+        nn_args: dict = {},
+        approximator: AbstractApproximator = None,
     ):  # Maybe we could just pass a FunctionApproximator object on initialization
         r"""Initializes FunctionApproximator neural net class to use in the elicitability solver.
 
         Args:
             nn_args (dict, optional): Optional args for FunctionApproximator class. Defaults to {}.
         """
-        number_of_spatial_processes = len(self.exogenous_process) - 1
-        domain_dimensions = (
-            1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
-        )
-        self.y_approximator = FunctionApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
-
+        if approximator is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            domain_dimensions = (
+                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+            )
+            self.y_approximator = FunctionApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+        else:
+            self.y_approximator = approximator
         return self.y_approximator
 
     def generate_backward_process(self):
@@ -369,25 +374,87 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         self.filtration = filtration
         self.z_approximator_args = {}
 
+    def _set_exogenous_process(self, exogenous_process_list: list):
+        for process in exogenous_process_list:
+            if process not in [
+                "time_process",
+                "brownian_process",
+                "forward_process",
+                "common_noise",
+            ]:
+                raise ValueError(
+                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process", "common_noise"'
+                )
+
+        self.exogenous_process = exogenous_process_list
+
+    def initialize_approximator(
+        self, nn_args: dict = {}, approximator: AbstractApproximator = None
+    ):
+        if approximator is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            domain_dimensions = (
+                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+            )
+            self.y_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+
+        else:
+            self.y_approximator = approximator
+        return self.y_approximator
+
+    def generate_backward_volatility(self):
+        return self.generate_idiosyncratic_noise_volatility()
+
+    def calculate_volatility_integral(self) -> torch.Tensor:
+        # Idiosyncratic component: Z_t dW_t
+        z = self._calculate_volatility(self.z_approximator)[:, :-1, :]
+
+        idiosyncratic_terms = z * self.filtration.idiosyncratic_increments
+
+        # Common noise component: Z^0_t dW^0_t
+        z_zero = self._calculate_volatility(self.z_zero_approximator)[:, :-1, :]
+        common_terms = z_zero * self.filtration.common_increments
+
+        # Sum and compute backward integral
+        increments = idiosyncratic_terms + common_terms
+        total = torch.sum(increments, dim=1).unsqueeze(1)
+        self.volatility_integral = total - torch.cumsum(increments, dim=1)
+        terminal = torch.zeros_like(self.volatility_integral[:, -1:, :])
+        self.volatility_integral = torch.cat(
+            [self.volatility_integral, terminal], dim=1
+        )
+        return self.volatility_integral
+
     def initialize_z_approximator(
         self,
         nn_args={},
+        approximators: Tuple[AbstractApproximator, AbstractApproximator] = None,
     ):
-        number_of_spatial_processes = len(self.exogenous_process) - 1
-        # Always (t, X_t, W^0_t, X_0)
-        domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
 
-        self.z_approximator = PathDependentApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
+        if approximators is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            # Always (t, X_t, W^0_t, X_0)
+            domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
 
-        self.z_zero_approximator = PathDependentApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
+            self.z_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+
+            self.z_zero_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+        else:
+            self.z_approximator = approximators[0]
+            self.z_zero_approximator = approximators[1]
+
         return self.z_approximator, self.z_zero_approximator
 
     def _check_if_common_noise_filtration(self):
@@ -446,7 +513,6 @@ class CommonNoiseBackwardSDE(BackwardSDE):
                 .repeat((1, num_timesteps, 1))
             )
 
-        processes.append(initial_condition)
         out = torch.cat(processes, dim=2)
         # out = self._add_padding(out)
 
@@ -496,6 +562,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     def solve(self, approximator_args: dict):
         super().solve(approximator_args)
         self.solve_for_common_volatility(self.z_approximator_args)
+        self.solve_for_idiosyncratic_volatility(self.z_approximator_args)
 
 
 class ForwardBackwardSDE:
