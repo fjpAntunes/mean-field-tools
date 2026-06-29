@@ -7,7 +7,7 @@ from mean_field_tools.deep_bsde.function_approximator import (
 from mean_field_tools.deep_bsde.filtration import Filtration, CommonNoiseFiltration
 from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
