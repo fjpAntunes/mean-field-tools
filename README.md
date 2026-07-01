@@ -46,6 +46,8 @@ pytest mean_field_tools/deep_bsde/test/unit/test_function_approximator.py
 ## Structure
 
 - `mean_field_tools/deep_bsde/`: Core implementations for deep BSDE methods
+
+Mostly old code:
 - `mean_field_tools/economic_model/`: Economic modeling tools
 - `mean_field_tools/finite_differences/`: Finite difference methods
 - `mean_field_tools/human_capital/`: Human capital modeling
