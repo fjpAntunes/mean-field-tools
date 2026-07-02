@@ -250,7 +250,7 @@ class FunctionApproximator(AbstractApproximator):
         self.x = self.preprocess(x)
         out = self.activation(self.input(self.x))
         for layer in self.hidden:
-            out = self.activation(layer(out))
+            out = self.activation(layer(out)) + out
 
         out = self.output(out)
         out = self.postprocess(out)
