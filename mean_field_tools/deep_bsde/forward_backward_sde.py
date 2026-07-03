@@ -506,15 +506,8 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             ]
         ]
 
-        if self.filtration.forward_process is None:
-            initial_condition = torch.zeros_like(self.filtration.time_process)
-        else:
-            num_timesteps = len(self.filtration.time_domain)
-            initial_condition = (
-                self.filtration.forward_process[:, 0, :]
-                .unsqueeze(1)
-                .repeat((1, num_timesteps, 1))
-            )
+        if self.filtration.parameter is not None:
+            processes.append(self.filtration.parameter)
 
         out = torch.cat(processes, dim=2)
         # out = self._add_padding(out)
