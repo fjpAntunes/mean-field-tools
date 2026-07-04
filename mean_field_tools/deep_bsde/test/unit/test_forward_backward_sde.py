@@ -173,7 +173,9 @@ def test_single_callable_damping_backward_compatible():
         filtration=filtration,
         drift=BACKWARD_DRIFT,
     )
-    backward_sde.initialize_approximator()
+    backward_sde.initialize_approximator(
+
+    )
 
     fbsde = ForwardBackwardSDE(
         filtration=filtration,
@@ -190,3 +192,42 @@ def test_single_callable_damping_backward_compatible():
     for var in ("forward_process", "backward_process", "forward_volatility"):
         result = fbsde._damping_update(current, update, variable_name=var)
         assert torch.allclose(result, torch.full((10,), 0.5))
+
+def test_stop_condition_callback():
+    FILTRATION = Filtration(
+        spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=1, seed=0
+    )
+
+    forward_sde = AnalyticForwardSDE(
+        filtration=FILTRATION,
+        functional_form=OU_FUNCTIONAL_FORM,
+        volatility_functional_form=lambda f: torch.ones_like(f.time_process),
+    )
+
+    backward_sde = BackwardSDE(
+        terminal_condition_function=lambda filtration: filtration.forward_process[
+            :, -1, :
+        ]
+        * 0,
+        filtration=FILTRATION,
+        drift=lambda filtration: filtration.backward_process,
+    )
+    backward_sde.initialize_approximator(
+        nn_args = {
+        'number_of_layers':1,
+        'number_of_nodes':1,
+        }
+    )
+
+    forward_backward_sde = ForwardBackwardSDE(
+        filtration=FILTRATION, forward_sde=forward_sde, backward_sde=backward_sde
+    )
+
+    def test_stop_callback():
+        return True
+    
+    forward_backward_sde.backward_solve(number_of_iterations=3, stop_condition_callback=test_stop_callback)
+
+
+    assert forward_backward_sde.iteration == 0
+
