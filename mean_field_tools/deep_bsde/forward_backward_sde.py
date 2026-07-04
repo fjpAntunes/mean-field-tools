@@ -741,6 +741,7 @@ class ForwardBackwardSDE:
         plotter: PicardIterationsArtist = None,
         approximator_args: dict = {},
         end_of_iteration_callback=None,
+        stop_condition_callback: Callable[[], bool]=None,
     ):
         """Solve the FBSDE system through Picard Iterations.
 
@@ -770,5 +771,9 @@ class ForwardBackwardSDE:
                 plotter.end_of_iteration_callback(fbsde=self, iteration=i)
             if end_of_iteration_callback is not None:
                 end_of_iteration_callback()
+            if stop_condition_callback is not None:
+                if stop_condition_callback():
+                    break
+
         if plotter is not None:
             plotter.end_of_solver_callback(fbsde=self)
