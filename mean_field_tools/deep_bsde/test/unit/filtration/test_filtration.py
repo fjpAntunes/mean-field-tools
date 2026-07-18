@@ -2,11 +2,14 @@ from mean_field_tools.deep_bsde.filtration import Filtration, BrownianIncrementG
 from mean_field_tools.deep_bsde.utils import tensors_are_close, L_inf_norm
 import torch
 
+import pytest
+
 torch.manual_seed(0)
 
 # Filtration
 
 TIME_DOMAIN = torch.linspace(0, 1, 101)
+
 
 FILTRATION = Filtration(
     spatial_dimensions=1, time_domain=TIME_DOMAIN, number_of_paths=1000
@@ -68,3 +71,20 @@ def test_brownian_process_path():
     )
 
     assert tensors_are_close(filtration.brownian_process, benchmark)
+
+
+def test_set_parameters_wrong_number_of_paths():
+    with pytest.raises(TypeError):
+        wrong_shape_parameter = torch.zeros(1,1,1)
+        FILTRATION.set_parameter(parameter=wrong_shape_parameter)
+
+
+def test_set_parameters_wrong_number_of_timesteps():
+    with pytest.raises(TypeError):
+        wrong_shape_parameter = torch.zeros(1000,1,1)
+        FILTRATION.set_parameter(parameter=wrong_shape_parameter)
+
+def test_number_of_parameters():
+    parameter = torch.ones(1000, 101, 5)
+    FILTRATION.set_parameter(parameter=parameter)
+    assert FILTRATION.number_of_parameters == 5

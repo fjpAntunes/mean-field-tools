@@ -124,6 +124,8 @@ class CommonNoiseMeasureFlow(MeasureFlow):
 
     def _set_elicitability_input(self) -> torch.Tensor:
         processes = [self.filtration.time_process, self.filtration.common_noise]
+        if self.filtration.parameter is not None:
+            processes = [self.filtration.parameter] + processes
         out = torch.cat(processes, dim=2)
         return out
 
