@@ -301,7 +301,7 @@ class BackwardSDE:
         ]
 
         if self.filtration.parameter is not None:
-            processes.append(self.filtration.parameter)
+            processes = [self.filtration.parameter] + processes
 
         out = torch.cat(processes, dim=2)
         out = self._add_padding(out)
@@ -507,7 +507,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         ]
 
         if self.filtration.parameter is not None:
-            processes.append(self.filtration.parameter)
+            processes = [self.filtration.parameter] + processes
 
         out = torch.cat(processes, dim=2)
         # out = self._add_padding(out)
