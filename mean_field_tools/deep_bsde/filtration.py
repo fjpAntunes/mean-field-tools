@@ -96,6 +96,7 @@ class Filtration:
         self.backward_process = None
         self.backward_volatility = None
         self.forward_mean_field = None
+        self.parameter = None
         self.number_of_parameters = 0
 
         self.processes = [
