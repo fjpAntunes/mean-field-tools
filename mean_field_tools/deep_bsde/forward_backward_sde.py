@@ -416,11 +416,11 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         # Idiosyncratic component: Z_t dW_t
         z = self._calculate_volatility(self.z_approximator)[:, :-1, :]
 
-        idiosyncratic_terms = z * self.filtration.idiosyncratic_increments
+        idiosyncratic_terms = z * self.filtration.idiosyncratic_noise_increments
 
         # Common noise component: Z^0_t dW^0_t
         z_zero = self._calculate_volatility(self.z_zero_approximator)[:, :-1, :]
-        common_terms = z_zero * self.filtration.common_increments
+        common_terms = z_zero * self.filtration.common_noise_increments
 
         # Sum and compute backward integral
         increments = idiosyncratic_terms + common_terms
