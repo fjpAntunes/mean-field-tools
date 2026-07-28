@@ -3,7 +3,7 @@ import matplotlib as mpl
 from typing import Callable
 import torch
 import numpy as np
-from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde import Filtration
 
 AnalyticalSolution = Callable[
     [

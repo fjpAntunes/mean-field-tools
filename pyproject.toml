@@ -2,19 +2,48 @@
 name = "mean-field-tools"
 version = "0.1.0"
 description = "Tools for numerical simulations of mean field games"
-authors = ["Felipe <fjpantunes2@gmail.com>"]
+authors = ["Felipe José Pinto Antunes <fjpantunes2@gmail.com>"]
 readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/fjpAntunes/mean-field-tools"
+repository = "https://github.com/fjpAntunes/mean-field-tools"
+keywords = [
+    "mean-field-games",
+    "mckean-vlasov",
+    "fbsde",
+    "deep-bsde",
+    "elicitability",
+    "stochastic-control",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 packages = [{include = "mean_field_tools"}]
+exclude = [
+    "mean_field_tools/**/test/**",
+    "mean_field_tools/**/script/**",
+]
+
+[tool.poetry.urls]
+"Paper" = "https://arxiv.org/abs/2512.14967"
 
 [tool.poetry.dependencies]
 python = "^3.10"
 numpy = "^1.26.4"
-black = "^24.4.2"
-pytest = "^8.2.0"
 scipy = "^1.13.0"
 matplotlib = "^3.8.4"
-torch = {version = "^2.3.0+cpu", source = "pytorch_cpu"}
+# The `+cpu` local label must not appear here: it is illegal in a PEP 440
+# ordered comparison and would ship malformed metadata to PyPI. The explicit
+# source below still resolves CPU-only wheels for local development.
+torch = {version = "^2.3.0", source = "pytorch_cpu"}
 tqdm = "^4.66.4"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+pytest = "^8.2.0"
 
 
 [[tool.poetry.source]]
@@ -25,3 +54,18 @@ priority = "explicit"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:tool.poetry.version"]
+tag_format = "v{version}"
+commit_parser = "conventional"
+# Both default the wrong way for a pre-1.0 project: without them the first
+# release is forced to 1.0.0, and a breaking change later jumps straight there.
+allow_zero_version = true
+major_on_zero = false
+
+[tool.semantic_release.branches.main]
+# The bump is computed on a pull request's head branch, which is never `main`,
+# so every branch has to be eligible or `semantic-release version` refuses to
+# run. Releases are still cut only by tagging `main`.
+match = ".*"

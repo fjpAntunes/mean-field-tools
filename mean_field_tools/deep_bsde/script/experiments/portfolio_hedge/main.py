@@ -1,11 +1,13 @@
-from mean_field_tools.deep_bsde.forward_backward_sde import (
+from mean_field_tools.deep_bsde import (
     ForwardBackwardSDE,
     AnalyticForwardSDE,
     BackwardSDE,
+    PicardIterationsArtist,
+    L_inf_norm,
+    Filtration,
 )
-from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
-from mean_field_tools.deep_bsde.utils import tensors_are_close, L_inf_norm
-from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde.utils import tensors_are_close
+from mean_field_tools.deep_bsde.artist import cast_to_np
 import torch
 
 TIME_DOMAIN = torch.linspace(0, 1, 101)
@@ -112,7 +114,6 @@ forward_backward_sde.backward_solve(
 nn = backward_sde.y_approximator
 
 import matplotlib.pyplot as plt
-from mean_field_tools.deep_bsde.artist import cast_to_np
 
 
 fig, axs = plt.subplots(2, 1)

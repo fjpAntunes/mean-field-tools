@@ -9,6 +9,17 @@ from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
 from typing import Callable, Dict, List, Tuple, Union
 
+__all__ = [
+    "filtrationMeasurableFunction",
+    "zero_function",
+    "ForwardSDE",
+    "NumericalForwardSDE",
+    "AnalyticForwardSDE",
+    "BackwardSDE",
+    "CommonNoiseBackwardSDE",
+    "ForwardBackwardSDE",
+]
+
 # Maybe create a path class with time and value - (t,X_t) in general
 
 filtrationMeasurableFunction = Callable[
@@ -202,7 +213,9 @@ class BackwardSDE:
         if approximator is None:
             number_of_spatial_processes = len(self.exogenous_process) - 1
             domain_dimensions = (
-                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions + self.filtration.number_of_parameters
+                1
+                + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
             )
             self.y_approximator = FunctionApproximator(
                 domain_dimension=domain_dimensions,
@@ -397,7 +410,9 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         if approximator is None:
             number_of_spatial_processes = len(self.exogenous_process) - 1
             domain_dimensions = (
-                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                1
+                + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
             )
             self.y_approximator = PathDependentApproximator(
                 domain_dimension=domain_dimensions,
@@ -416,11 +431,11 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         # Idiosyncratic component: Z_t dW_t
         z = self._calculate_volatility(self.z_approximator)[:, :-1, :]
 
-        idiosyncratic_terms = z * self.filtration.idiosyncratic_increments
+        idiosyncratic_terms = z * self.filtration.idiosyncratic_noise_increments
 
         # Common noise component: Z^0_t dW^0_t
         z_zero = self._calculate_volatility(self.z_zero_approximator)[:, :-1, :]
-        common_terms = z_zero * self.filtration.common_increments
+        common_terms = z_zero * self.filtration.common_noise_increments
 
         # Sum and compute backward integral
         increments = idiosyncratic_terms + common_terms
@@ -439,9 +454,12 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     ):
 
         if approximators is None:
-            number_of_spatial_processes = len(self.exogenous_process) - 1
-            # Always (t, X_t, W^0_t, X_0)
-            domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
+            # Always (t, X_t, W^0_t), preceded by the parameter when one is set.
+            domain_dimensions = (
+                1
+                + 2 * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
+            )
 
             self.z_approximator = PathDependentApproximator(
                 domain_dimension=domain_dimensions,
@@ -737,7 +755,7 @@ class ForwardBackwardSDE:
         plotter: PicardIterationsArtist = None,
         approximator_args: dict = {},
         end_of_iteration_callback=None,
-        stop_condition_callback: Callable[[], bool]=None,
+        stop_condition_callback: Callable[[], bool] = None,
     ):
         """Solve the FBSDE system through Picard Iterations.
 

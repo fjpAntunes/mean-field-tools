@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "Mean Field Tools"
+abstract: >-
+  A Python library for numerically solving mean field problems using the Deep
+  BSDE method, focusing on forward-backward stochastic differential equations
+  (FBSDEs) and mean field games.
+type: software
+authors:
+  - family-names: "Antunes"
+    given-names: "Felipe José Pinto"
+repository-code: "https://github.com/fjpAntunes/mean-field-tools"
+license: MIT
+version: "0.1.0"
+keywords:
+  - mean field games
+  - McKean-Vlasov
+  - FBSDE
+  - deep BSDE
+  - elicitability
+  - stochastic control
+preferred-citation:
+  type: article
+  title: "Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise"
+  authors:
+    - family-names: "Antunes"
+      given-names: "Felipe J. P."
+    - family-names: "Saporito"
+      given-names: "Yuri F."
+    - family-names: "Jaimungal"
+      given-names: "Sebastian"
+  year: 2026
+  journal: "arXiv"
+  url: "https://arxiv.org/abs/2512.14967"
+  identifiers:
+    - type: other
+      value: "arXiv:2512.14967"
+      description: "arXiv preprint identifier"

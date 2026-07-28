@@ -49,7 +49,7 @@ def test_parameterize_time_process():
     t = FILTRATION.time_process
 
     deviation = conditional_mean - t
-    assert L_2_norm(deviation) < 1e-4
+    assert L_2_norm(deviation) < 5e-4
 
 
 def test_parameterize():

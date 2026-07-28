@@ -1,12 +1,12 @@
 """Tests Ornstein-Uhlenbeck as forward process"""
 
-from mean_field_tools.deep_bsde.forward_backward_sde import (
+from mean_field_tools.deep_bsde import (
     Filtration,
     BackwardSDE,
     AnalyticForwardSDE,
     ForwardBackwardSDE,
+    FunctionApproximatorArtist,
 )
-from mean_field_tools.deep_bsde.artist import FunctionApproximatorArtist
 import torch
 import numpy as np
 

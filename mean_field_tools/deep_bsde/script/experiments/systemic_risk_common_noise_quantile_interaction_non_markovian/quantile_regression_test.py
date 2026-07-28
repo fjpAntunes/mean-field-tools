@@ -1,7 +1,10 @@
-from mean_field_tools.deep_bsde.function_approximator import PathDependentApproximator
-from mean_field_tools.deep_bsde.filtration import CommonNoiseFiltration, Filtration
+from mean_field_tools.deep_bsde import (
+    PathDependentApproximator,
+    CommonNoiseFiltration,
+    Filtration,
+    CommonNoiseMeasureFlow,
+)
 
-from mean_field_tools.deep_bsde.measure_flow import CommonNoiseMeasureFlow
 import torch
 import numpy as np
 import matplotlib.pyplot as plt

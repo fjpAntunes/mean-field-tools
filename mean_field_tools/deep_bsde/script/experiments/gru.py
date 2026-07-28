@@ -1,5 +1,7 @@
-from mean_field_tools.deep_bsde.function_approximator import FunctionApproximator
-from mean_field_tools.deep_bsde.filtration import Filtration
+from mean_field_tools.deep_bsde import (
+    FunctionApproximator,
+    Filtration,
+)
 
 import torch
 from torch import nn

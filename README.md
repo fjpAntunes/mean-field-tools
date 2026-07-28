@@ -1,16 +1,16 @@
 # Mean Field Tools
 
-A Python library providing tools for numerical solutions of mean field problems, focusing on stochastic differential equations, forward-backward SDEs, and mean field games.
+A Python library for numerically solving mean field problems using the Deep BSDE method, focusing on forward-backward stochastic differential equations (FBSDEs) and mean field games.
+
+It accompanies the paper [*Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise*](https://arxiv.org/abs/2512.14967) — see [How to cite this work](#how-to-cite-this-work).
 
 ## Features
 
-- Deep BSDE (Backward Stochastic Differential Equations) solvers
-- Forward-Backward SDE implementations
-- Mean field flow measure approximations
-- Economic model implementations
-- Human capital models
-- Linear-quadratic solvers
-- Finite difference methods for Fokker-Planck equations
+- Deep BSDE (Backward Stochastic Differential Equation) solvers
+- Forward-Backward SDE implementations with Picard iteration
+- Neural-network function approximators (including ResNet architectures)
+- Mean field flow measure approximations (with common-noise support)
+- Filtration tools for Brownian motion and stochastic state tracking
 
 ## Installation
 
@@ -25,7 +25,7 @@ poetry install
 
 ## Usage
 
-Check the `experiments` directory and individual module README files for examples and usage instructions.
+See `mean_field_tools/deep_bsde/README.md` for a detailed overview of the components, and `mean_field_tools/deep_bsde/script/experiments/` for runnable examples (systemic risk, portfolio hedging, economic growth, and more).
 
 ## Testing
 
@@ -45,11 +45,34 @@ pytest mean_field_tools/deep_bsde/test/unit/test_function_approximator.py
 
 ## Structure
 
-- `mean_field_tools/deep_bsde/`: Core implementations for deep BSDE methods
-- `mean_field_tools/economic_model/`: Economic modeling tools
-- `mean_field_tools/finite_differences/`: Finite difference methods
-- `mean_field_tools/human_capital/`: Human capital modeling
-- `mean_field_tools/linear_quadratic/`: Linear-quadratic problem solvers
+- `mean_field_tools/deep_bsde/`: Core library — the Deep BSDE solver and its components
+  - `filtration.py`: Brownian motion generation and stochastic state tracking
+  - `forward_backward_sde.py`: Forward/Backward SDE classes and Picard iteration
+  - `function_approximator.py`: Neural-network approximators
+  - `measure_flow.py`: Mean field flow measure approximations
+  - `artist.py`: Plotting and diagnostics
+  - `script/experiments/`: Example applications
+  - `test/`: Unit and integration tests
+
+## How to cite this work
+
+If you use this library in your research, please cite:
+
+> Felipe J. P. Antunes, Yuri F. Saporito, and Sebastian Jaimungal.
+> *Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise*, 2026.
+> arXiv:[2512.14967](https://arxiv.org/abs/2512.14967).
+
+```bibtex
+@misc{antunes2026deeplearningelicitabilitymckeanvlasov,
+      title={Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise},
+      author={Felipe J. P. Antunes and Yuri F. Saporito and Sebastian Jaimungal},
+      year={2026},
+      eprint={2512.14967},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2512.14967},
+}
+```
 
 ## License
 
