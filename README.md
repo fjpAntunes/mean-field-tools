@@ -2,6 +2,8 @@
 
 A Python library for numerically solving mean field problems using the Deep BSDE method, focusing on forward-backward stochastic differential equations (FBSDEs) and mean field games.
 
+It accompanies the paper [*Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise*](https://arxiv.org/abs/2512.14967) — see [How to cite this work](#how-to-cite-this-work).
+
 ## Features
 
 - Deep BSDE (Backward Stochastic Differential Equation) solvers
@@ -51,6 +53,26 @@ pytest mean_field_tools/deep_bsde/test/unit/test_function_approximator.py
   - `artist.py`: Plotting and diagnostics
   - `script/experiments/`: Example applications
   - `test/`: Unit and integration tests
+
+## How to cite this work
+
+If you use this library in your research, please cite:
+
+> Felipe J. P. Antunes, Yuri F. Saporito, and Sebastian Jaimungal.
+> *Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise*, 2026.
+> arXiv:[2512.14967](https://arxiv.org/abs/2512.14967).
+
+```bibtex
+@misc{antunes2026deeplearningelicitabilitymckeanvlasov,
+      title={Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise},
+      author={Felipe J. P. Antunes and Yuri F. Saporito and Sebastian Jaimungal},
+      year={2026},
+      eprint={2512.14967},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2512.14967},
+}
+```
 
 ## License
 
