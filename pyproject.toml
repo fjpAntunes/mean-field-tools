@@ -54,3 +54,18 @@ priority = "explicit"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:tool.poetry.version"]
+tag_format = "v{version}"
+commit_parser = "conventional"
+# Both default the wrong way for a pre-1.0 project: without them the first
+# release is forced to 1.0.0, and a breaking change later jumps straight there.
+allow_zero_version = true
+major_on_zero = false
+
+[tool.semantic_release.branches.main]
+# The bump is computed on a pull request's head branch, which is never `main`,
+# so every branch has to be eligible or `semantic-release version` refuses to
+# run. Releases are still cut only by tagging `main`.
+match = ".*"
