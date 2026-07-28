@@ -399,7 +399,9 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         if approximator is None:
             number_of_spatial_processes = len(self.exogenous_process) - 1
             domain_dimensions = (
-                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                1
+                + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
             )
             self.y_approximator = PathDependentApproximator(
                 domain_dimension=domain_dimensions,
