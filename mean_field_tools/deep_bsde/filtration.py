@@ -1,5 +1,12 @@
 import torch
 
+__all__ = [
+    "StochasticProcess",
+    "BrownianIncrementGenerator",
+    "Filtration",
+    "CommonNoiseFiltration",
+]
+
 
 class StochasticProcess:
     pass
@@ -96,6 +103,8 @@ class Filtration:
         self.backward_process = None
         self.backward_volatility = None
         self.forward_mean_field = None
+        self.parameter = None
+        self.number_of_parameters = 0
 
         self.processes = [
             self.time_process,
@@ -115,6 +124,18 @@ class Filtration:
             [initial, torch.cumsum(brownian_increments, axis=1)], dim=1
         )
         return brownian_process
+
+    def set_parameter(self, parameter: torch.Tensor):
+        if parameter.shape[0] != self.number_of_paths or parameter.shape[1] != len(
+            self.time_domain
+        ):
+            raise TypeError(
+                "paramter shape should be (number_of_paths, number_of_timesteps, number_of_parameters)"
+            )
+
+        else:
+            self.number_of_parameters = parameter.shape[2]
+            self.parameter = parameter
 
     def get_paths(self):
         processes = []

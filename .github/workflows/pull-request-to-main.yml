@@ -1,0 +1,82 @@
+name: Pull Request to main
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  full-tests:
+    name: Full test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run full test suite
+        run: poetry run pytest mean_field_tools/deep_bsde/test/
+
+  version:
+    name: Semantic version bump
+    needs: full-tests
+    runs-on: ubuntu-latest
+    # A fork's head branch is not writable with GITHUB_TOKEN, so the bump has to
+    # be applied by hand for outside contributions.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Check out the PR's head branch rather than the merge commit, so the
+          # bump lands on the branch. Full history and tags are required for
+          # semantic-release to find the last release.
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install python-semantic-release
+        run: pipx install python-semantic-release
+
+      - name: Apply version bump
+        id: bump
+        run: |
+          read_version() { grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2; }
+          before="$(read_version)"
+          semantic-release version \
+            --no-commit --no-tag --no-push --no-changelog --skip-build
+          after="$(read_version)"
+          echo "before=${before}" >> "$GITHUB_OUTPUT"
+          echo "after=${after}" >> "$GITHUB_OUTPUT"
+          echo "semantic-release resolved ${before} -> ${after}"
+
+      - name: Commit bump
+        if: steps.bump.outputs.before != steps.bump.outputs.after
+        run: |
+          version="${{ steps.bump.outputs.after }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(release): bump version to ${version}" pyproject.toml
+          git push origin "HEAD:${{ github.head_ref }}"
+          echo "Bumped \`${{ steps.bump.outputs.before }}\` to \`${version}\`." \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report no bump
+        if: steps.bump.outputs.before == steps.bump.outputs.after
+        run: |
+          echo "No conventional commits since the last release imply a bump; \
+          version stays at \`${{ steps.bump.outputs.after }}\`." \
+            >> "$GITHUB_STEP_SUMMARY"

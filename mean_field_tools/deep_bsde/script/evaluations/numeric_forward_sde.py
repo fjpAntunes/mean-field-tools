@@ -1,15 +1,13 @@
-from mean_field_tools.deep_bsde.forward_backward_sde import (
+from mean_field_tools.deep_bsde import (
     Filtration,
     BackwardSDE,
     NumericalForwardSDE,
     AnalyticForwardSDE,
     ForwardBackwardSDE,
-)
-from mean_field_tools.deep_bsde.artist import (
-    cast_to_np,
     FunctionApproximatorArtist,
     PicardIterationsArtist,
 )
+from mean_field_tools.deep_bsde.artist import cast_to_np
 import torch
 import numpy as np
 

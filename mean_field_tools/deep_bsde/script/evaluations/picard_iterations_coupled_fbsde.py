@@ -1,10 +1,8 @@
-from mean_field_tools.deep_bsde.forward_backward_sde import (
+from mean_field_tools.deep_bsde import (
     Filtration,
     BackwardSDE,
     NumericalForwardSDE,
     ForwardBackwardSDE,
-)
-from mean_field_tools.deep_bsde.artist import (
     FunctionApproximatorArtist,
     PicardIterationsArtist,
 )

@@ -88,7 +88,12 @@ def test_generate_sample_batch_target():
 
 
 def test_single_training_step():
-    approximator = setup()
+    # Benchmarked against fixed weights, so the initialization must not depend on
+    # the RNG state left behind by other tests. `fork_rng` keeps the seed local.
+    with torch.random.fork_rng():
+        torch.manual_seed(0)
+        approximator = setup()
+
     approximator.training_setup()
     sample = torch.Tensor(
         [
@@ -106,17 +111,17 @@ def test_single_training_step():
 
     benchmark = {
         "input.weight": [
-            [-0.5869807600975037, -0.5253874659538269],
-            [-0.2773452401161194, 0.18461589515209198],
+            [-0.010293715633451939, 0.3743039071559906],
+            [-0.5769516825675964, -0.5153614282608032],
         ],
-        "input.bias": [-0.019010011106729507, 0.5556575059890747],
+        "input.bias": [-0.2773316204547882, 0.19460640847682953],
         "hidden.0.weight": [
-            [-0.05775151774287224, 0.19210933148860931],
-            [-0.21869690716266632, -0.14399270713329315],
+            [-0.019009333103895187, 0.5656294822692871],
+            [-0.06774838268756866, 0.19209997355937958],
         ],
-        "hidden.0.bias": [-0.6805334091186523, -0.46330416202545166],
-        "output.weight": [[-0.2964857518672943, 0.021193761378526688]],
-        "output.bias": [0.2845441997051239],
+        "hidden.0.bias": [-0.21868622303009033, -0.14398576319217682],
+        "output.weight": [[-0.6704996228218079, -0.47328072786331177]],
+        "output.bias": [-0.2864711880683899],
     }
 
     output = {name: param.tolist() for name, param in approximator.named_parameters()}

@@ -1,12 +1,24 @@
 import torch
 from mean_field_tools.deep_bsde.function_approximator import (
+    AbstractApproximator,
     FunctionApproximator,
     PathDependentApproximator,
 )
 from mean_field_tools.deep_bsde.filtration import Filtration, CommonNoiseFiltration
 from mean_field_tools.deep_bsde.measure_flow import MeasureFlow
 from mean_field_tools.deep_bsde.artist import PicardIterationsArtist
-from typing import Callable, List
+from typing import Callable, Dict, List, Tuple, Union
+
+__all__ = [
+    "filtrationMeasurableFunction",
+    "zero_function",
+    "ForwardSDE",
+    "NumericalForwardSDE",
+    "AnalyticForwardSDE",
+    "BackwardSDE",
+    "CommonNoiseBackwardSDE",
+    "ForwardBackwardSDE",
+]
 
 # Maybe create a path class with time and value - (t,X_t) in general
 
@@ -189,23 +201,29 @@ class BackwardSDE:
             self.number_of_dimensions = number_of_dimensions
 
     def initialize_approximator(
-        self, nn_args: dict = {}
+        self,
+        nn_args: dict = {},
+        approximator: AbstractApproximator = None,
     ):  # Maybe we could just pass a FunctionApproximator object on initialization
         r"""Initializes FunctionApproximator neural net class to use in the elicitability solver.
 
         Args:
             nn_args (dict, optional): Optional args for FunctionApproximator class. Defaults to {}.
         """
-        number_of_spatial_processes = len(self.exogenous_process) - 1
-        domain_dimensions = (
-            1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions
-        )
-        self.y_approximator = FunctionApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
-
+        if approximator is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            domain_dimensions = (
+                1
+                + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
+            )
+            self.y_approximator = FunctionApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+        else:
+            self.y_approximator = approximator
         return self.y_approximator
 
     def generate_backward_process(self):
@@ -295,6 +313,9 @@ class BackwardSDE:
             self.filtration.__dict__.get(name) for name in self.exogenous_process
         ]
 
+        if self.filtration.parameter is not None:
+            processes = [self.filtration.parameter] + processes
+
         out = torch.cat(processes, dim=2)
         out = self._add_padding(out)
 
@@ -369,25 +390,92 @@ class CommonNoiseBackwardSDE(BackwardSDE):
         self.filtration = filtration
         self.z_approximator_args = {}
 
+    def _set_exogenous_process(self, exogenous_process_list: list):
+        for process in exogenous_process_list:
+            if process not in [
+                "time_process",
+                "brownian_process",
+                "forward_process",
+                "common_noise",
+            ]:
+                raise ValueError(
+                    'Every element of `exogenous_process` must be one of "time_process", "brownian_process", "forward_process", "common_noise"'
+                )
+
+        self.exogenous_process = exogenous_process_list
+
+    def initialize_approximator(
+        self, nn_args: dict = {}, approximator: AbstractApproximator = None
+    ):
+        if approximator is None:
+            number_of_spatial_processes = len(self.exogenous_process) - 1
+            domain_dimensions = (
+                1
+                + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
+            )
+            self.y_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+
+        else:
+            self.y_approximator = approximator
+        return self.y_approximator
+
+    def generate_backward_volatility(self):
+        return self.generate_idiosyncratic_noise_volatility()
+
+    def calculate_volatility_integral(self) -> torch.Tensor:
+        # Idiosyncratic component: Z_t dW_t
+        z = self._calculate_volatility(self.z_approximator)[:, :-1, :]
+
+        idiosyncratic_terms = z * self.filtration.idiosyncratic_noise_increments
+
+        # Common noise component: Z^0_t dW^0_t
+        z_zero = self._calculate_volatility(self.z_zero_approximator)[:, :-1, :]
+        common_terms = z_zero * self.filtration.common_noise_increments
+
+        # Sum and compute backward integral
+        increments = idiosyncratic_terms + common_terms
+        total = torch.sum(increments, dim=1).unsqueeze(1)
+        self.volatility_integral = total - torch.cumsum(increments, dim=1)
+        terminal = torch.zeros_like(self.volatility_integral[:, -1:, :])
+        self.volatility_integral = torch.cat(
+            [self.volatility_integral, terminal], dim=1
+        )
+        return self.volatility_integral
+
     def initialize_z_approximator(
         self,
         nn_args={},
+        approximators: Tuple[AbstractApproximator, AbstractApproximator] = None,
     ):
-        number_of_spatial_processes = len(self.exogenous_process) - 1
-        # Always (t, X_t, W^0_t, X_0)
-        domain_dimensions = 1 + 3 * self.filtration.spatial_dimensions
 
-        self.z_approximator = PathDependentApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
+        if approximators is None:
+            # Always (t, X_t, W^0_t), preceded by the parameter when one is set.
+            domain_dimensions = (
+                1
+                + 2 * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
+            )
 
-        self.z_zero_approximator = PathDependentApproximator(
-            domain_dimension=domain_dimensions,
-            output_dimension=self.number_of_dimensions,
-            **nn_args,
-        )
+            self.z_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+
+            self.z_zero_approximator = PathDependentApproximator(
+                domain_dimension=domain_dimensions,
+                output_dimension=self.number_of_dimensions,
+                **nn_args,
+            )
+        else:
+            self.z_approximator = approximators[0]
+            self.z_zero_approximator = approximators[1]
+
         return self.z_approximator, self.z_zero_approximator
 
     def _check_if_common_noise_filtration(self):
@@ -436,17 +524,9 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             ]
         ]
 
-        if self.filtration.forward_process is None:
-            initial_condition = torch.zeros_like(self.filtration.time_process)
-        else:
-            num_timesteps = len(self.filtration.time_domain)
-            initial_condition = (
-                self.filtration.forward_process[:, 0, :]
-                .unsqueeze(1)
-                .repeat((1, num_timesteps, 1))
-            )
+        if self.filtration.parameter is not None:
+            processes = [self.filtration.parameter] + processes
 
-        processes.append(initial_condition)
         out = torch.cat(processes, dim=2)
         # out = self._add_padding(out)
 
@@ -496,10 +576,20 @@ class CommonNoiseBackwardSDE(BackwardSDE):
     def solve(self, approximator_args: dict):
         super().solve(approximator_args)
         self.solve_for_common_volatility(self.z_approximator_args)
+        self.solve_for_idiosyncratic_volatility(self.z_approximator_args)
 
 
 class ForwardBackwardSDE:
     """This class manipulates both forward and backward SDE objects in order to implement Picard iterations numerical scheme."""
+
+    DAMPING_VARIABLES = (
+        "forward_process",
+        "forward_volatility",
+        "forward_mean_field",
+        "backward_process",
+        "backward_volatility",
+        "backward_common_volatility",
+    )
 
     def __init__(
         self,
@@ -507,7 +597,9 @@ class ForwardBackwardSDE:
         forward_sde: ForwardSDE,
         backward_sde: BackwardSDE,
         measure_flow: MeasureFlow = None,
-        damping: Callable[[int], float] = lambda i: 0,
+        damping: Union[
+            Callable[[int], float], Dict[str, Callable[[int], float]]
+        ] = lambda i: 0,
     ):
         self.filtration = filtration
         self.forward_sde = forward_sde
@@ -516,11 +608,24 @@ class ForwardBackwardSDE:
         self.damping = damping
         self.iteration = 0
 
-    def _damping_update(self, current, update):
+        if callable(damping):
+            self._damping_functions = {var: damping for var in self.DAMPING_VARIABLES}
+        elif isinstance(damping, dict):
+            invalid_keys = set(damping.keys()) - set(self.DAMPING_VARIABLES)
+            if invalid_keys:
+                raise ValueError(f"Invalid damping variable names: {invalid_keys}")
+            no_damping = lambda i: 0
+            self._damping_functions = {
+                var: damping.get(var, no_damping) for var in self.DAMPING_VARIABLES
+            }
+        else:
+            raise TypeError("damping must be a callable or a dict of callables")
+
+    def _damping_update(self, current, update, variable_name: str):
         if current is None:
             return update
 
-        coefficient = self.damping(self.iteration)
+        coefficient = self._damping_functions[variable_name](self.iteration)
 
         damped_update = coefficient * current + (1 - coefficient) * update
 
@@ -531,6 +636,7 @@ class ForwardBackwardSDE:
         damped_update_forward_process = self._damping_update(
             current=self.filtration.forward_process,
             update=updated_forward_process,
+            variable_name="forward_process",
         )
         self.filtration.forward_process = damped_update_forward_process
 
@@ -539,6 +645,7 @@ class ForwardBackwardSDE:
         damped_update_forward_volatility = self._damping_update(
             current=self.filtration.forward_volatility,
             update=updated_forward_volatility,
+            variable_name="forward_volatility",
         )
         self.filtration.forward_volatility = damped_update_forward_volatility
 
@@ -548,6 +655,7 @@ class ForwardBackwardSDE:
             damped_update_forward_mean_field = self._damping_update(
                 current=self.filtration.forward_mean_field,
                 update=updated_forward_mean_field,
+                variable_name="forward_mean_field",
             )
             self.filtration.forward_mean_field = damped_update_forward_mean_field
 
@@ -556,6 +664,7 @@ class ForwardBackwardSDE:
         damped_update_backward_process = self._damping_update(
             current=self.filtration.backward_process,
             update=updated_backward_process,
+            variable_name="backward_process",
         )
 
         self.filtration.backward_process = damped_update_backward_process
@@ -565,6 +674,7 @@ class ForwardBackwardSDE:
         damped_updated_backward_volatility = self._damping_update(
             current=self.filtration.backward_volatility,
             update=updated_backward_volatility,
+            variable_name="backward_volatility",
         )
 
         self.filtration.backward_volatility = damped_updated_backward_volatility
@@ -576,6 +686,7 @@ class ForwardBackwardSDE:
             damped_updated_backward_common_volatility = self._damping_update(
                 current=self.filtration.backward_common_volatility,
                 update=updated_backward_common_volatility,
+                variable_name="backward_common_volatility",
             )
 
             self.filtration.backward_common_volatility = (
@@ -644,6 +755,7 @@ class ForwardBackwardSDE:
         plotter: PicardIterationsArtist = None,
         approximator_args: dict = {},
         end_of_iteration_callback=None,
+        stop_condition_callback: Callable[[], bool] = None,
     ):
         """Solve the FBSDE system through Picard Iterations.
 
@@ -673,5 +785,9 @@ class ForwardBackwardSDE:
                 plotter.end_of_iteration_callback(fbsde=self, iteration=i)
             if end_of_iteration_callback is not None:
                 end_of_iteration_callback()
+            if stop_condition_callback is not None:
+                if stop_condition_callback():
+                    break
+
         if plotter is not None:
             plotter.end_of_solver_callback(fbsde=self)
