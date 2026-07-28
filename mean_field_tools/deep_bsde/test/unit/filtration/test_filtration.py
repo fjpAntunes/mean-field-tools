@@ -75,14 +75,15 @@ def test_brownian_process_path():
 
 def test_set_parameters_wrong_number_of_paths():
     with pytest.raises(TypeError):
-        wrong_shape_parameter = torch.zeros(1,1,1)
+        wrong_shape_parameter = torch.zeros(1, 1, 1)
         FILTRATION.set_parameter(parameter=wrong_shape_parameter)
 
 
 def test_set_parameters_wrong_number_of_timesteps():
     with pytest.raises(TypeError):
-        wrong_shape_parameter = torch.zeros(1000,1,1)
+        wrong_shape_parameter = torch.zeros(1000, 1, 1)
         FILTRATION.set_parameter(parameter=wrong_shape_parameter)
+
 
 def test_number_of_parameters():
     parameter = torch.ones(1000, 101, 5)

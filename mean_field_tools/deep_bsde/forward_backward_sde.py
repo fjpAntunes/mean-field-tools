@@ -202,7 +202,9 @@ class BackwardSDE:
         if approximator is None:
             number_of_spatial_processes = len(self.exogenous_process) - 1
             domain_dimensions = (
-                1 + (number_of_spatial_processes) * self.filtration.spatial_dimensions + self.filtration.number_of_parameters
+                1
+                + (number_of_spatial_processes) * self.filtration.spatial_dimensions
+                + self.filtration.number_of_parameters
             )
             self.y_approximator = FunctionApproximator(
                 domain_dimension=domain_dimensions,
@@ -740,7 +742,7 @@ class ForwardBackwardSDE:
         plotter: PicardIterationsArtist = None,
         approximator_args: dict = {},
         end_of_iteration_callback=None,
-        stop_condition_callback: Callable[[], bool]=None,
+        stop_condition_callback: Callable[[], bool] = None,
     ):
         """Solve the FBSDE system through Picard Iterations.
 

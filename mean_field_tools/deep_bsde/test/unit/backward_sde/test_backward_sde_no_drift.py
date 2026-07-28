@@ -74,7 +74,7 @@ def test_set_optimization_target_consistency_along_path_2d():
 
 
 def test_set_approximator_input_with_parameter():
-    FILTRATION.set_parameter(torch.ones(3,101,2))
-    
+    FILTRATION.set_parameter(torch.ones(3, 101, 2))
+
     input = zero_drift_bsde.set_approximator_input()
     assert input.shape[2] == 4
