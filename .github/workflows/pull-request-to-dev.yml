@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [develop]
 
+permissions:
+  contents: write
+
 jobs:
   format:
     name: Format
