@@ -4,12 +4,18 @@ on:
   pull_request:
     branches: [develop]
 
+permissions:
+  contents: write
+
 jobs:
   format:
     name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -23,7 +29,17 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Check formatting
-        run: poetry run black --check .
+        run: poetry run black .
+
+      - name: Push black formatting fixes
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.email "action@github.com"
+            git config user.name "Lint Action"
+            git add -u
+            git commit -m "style: apply black formatting"
+            git push
+          fi
 
   unit-tests:
     name: Unit tests
