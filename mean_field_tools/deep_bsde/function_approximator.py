@@ -313,7 +313,9 @@ class PathDependentApproximator(AbstractApproximator):
 
         batch_size = x.size(0)
 
-        h0 = self.h0.expand(self.number_of_layers, batch_size, self.number_of_nodes).contiguous()
+        h0 = self.h0.expand(
+            self.number_of_layers, batch_size, self.number_of_nodes
+        ).contiguous()
 
         out, _ = self.gru(self.x, h0)
         out = self.activation(out)
