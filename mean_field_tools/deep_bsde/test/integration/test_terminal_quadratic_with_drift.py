@@ -58,7 +58,6 @@ def test_terminal_quadratic_with_deterministic_drift():
 
     output = bsde.y_approximator(forward_path)
 
-    
     benchmark = ANALYTICAL_SOLUTION(forward_path, filtration.time_process, 1)
 
     error = torch.norm(output - benchmark)

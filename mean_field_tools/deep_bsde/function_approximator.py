@@ -300,8 +300,8 @@ class PathDependentApproximator(AbstractApproximator):
         ).to(self.device)
 
         self.h0 = nn.Parameter(
-                torch.zeros(number_of_layers, 1, number_of_nodes).to(self.device)
-            )
+            torch.zeros(number_of_layers, 1, number_of_nodes).to(self.device)
+        )
         self.output = nn.Linear(number_of_nodes, output_dimension).to(self.device)
 
         self.activation = nn.SiLU()
@@ -312,10 +312,8 @@ class PathDependentApproximator(AbstractApproximator):
         self.x = self.preprocess(x)
 
         batch_size = x.size(0)
-        
-        h0 = self.h0.expand(
-                self.gru_layers, batch_size, self.gru_hidden
-            ).contiguous()
+
+        h0 = self.h0.expand(self.gru_layers, batch_size, self.gru_hidden).contiguous()
 
         out, _ = self.gru(self.x, h0)
         out = self.activation(out)
@@ -371,9 +369,7 @@ class HybridApproximator(AbstractApproximator):
             self.device
         )
 
-        self.h0 = nn.Parameter(
-                torch.zeros(gru_layers, 1, gru_hidden).to(self.device)
-            )
+        self.h0 = nn.Parameter(torch.zeros(gru_layers, 1, gru_hidden).to(self.device))
 
         self.gru = nn.GRU(
             self.path_dependent_dimention,
@@ -405,9 +401,7 @@ class HybridApproximator(AbstractApproximator):
         path_dependent = self.x[:, :, self.markov_dimension :]
         batch_size = path_dependent.size(0)
 
-        h0 = self.h0.expand(
-                self.gru_layers, batch_size, self.gru_hidden
-            ).contiguous()
+        h0 = self.h0.expand(self.gru_layers, batch_size, self.gru_hidden).contiguous()
 
         out_gru, _ = self.gru(path_dependent, h0)
         out_gru = self.activation(out_gru)
