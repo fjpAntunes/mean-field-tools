@@ -37,7 +37,7 @@ jobs:
             git config user.email "action@github.com"
             git config user.name "Lint Action"
             git add -u
-            git commit -m "style: apply black formatting"
+            git commit -m "style: apply black formatting [skip ci]"
             git push
           fi
 
