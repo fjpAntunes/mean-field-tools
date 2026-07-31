@@ -1,6 +1,6 @@
 # Mean Field Tools
 
-A Python library for numerically solving mean field problems using the Deep BSDE method, focusing on forward-backward stochastic differential equations (FBSDEs) and mean field games.
+A Python library for numerically solving McKean-Vlasov forward-backward stochastic differential equations (MV-FBSDEs) under common noise using elicitability, deep learning and Picard iterations.
 
 It accompanies the paper [*Deep Learning and Elicitability for McKean-Vlasov FBSDEs With Common Noise*](https://arxiv.org/abs/2512.14967) — see [How to cite this work](#how-to-cite-this-work).
 
