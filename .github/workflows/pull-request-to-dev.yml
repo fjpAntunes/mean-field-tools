@@ -23,7 +23,17 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Check formatting
-        run: poetry run black --check .
+        run: poetry run black .
+
+      - name: Push black formatting fixes
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.email "action@github.com"
+            git config user.name "Lint Action"
+            git add -u
+            git commit -m "style: apply black formatting"
+            git push
+          fi
 
   unit-tests:
     name: Unit tests
