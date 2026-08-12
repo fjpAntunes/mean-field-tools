@@ -66,7 +66,8 @@ class AbstractApproximator(nn.Module):
         return gradient
 
     def detached_call(self, x):
-        return self.forward(x).detach()
+        with torch.no_grad():
+            return self.forward(x)
 
     def _generate_batch(
         self,
@@ -254,8 +255,8 @@ class FunctionApproximator(AbstractApproximator):
         self.scoring = scoring
 
     def forward(self, x):
-        self.x = self.preprocess(x)
-        out = self.activation(self.input(self.x))
+        x = self.preprocess(x)
+        out = self.activation(self.input(x))
         for layer in self.hidden:
             out = self.activation(layer(out)) + out
 
@@ -309,7 +310,7 @@ class PathDependentApproximator(AbstractApproximator):
         self.scoring = scoring
 
     def forward(self, x):
-        self.x = self.preprocess(x)
+        x = self.preprocess(x)
 
         batch_size = x.size(0)
 
@@ -317,7 +318,7 @@ class PathDependentApproximator(AbstractApproximator):
             self.number_of_layers, batch_size, self.number_of_nodes
         ).contiguous()
 
-        out, _ = self.gru(self.x, h0)
+        out, _ = self.gru(x, h0)
         out = self.activation(out)
 
         out = self.output(out)
@@ -394,13 +395,13 @@ class HybridApproximator(AbstractApproximator):
         self.scoring = scoring
 
     def forward(self, x):
-        self.x = self.preprocess(x)
+        x = self.preprocess(x)
 
-        markov = self.x[:, :, : self.markov_dimension]
+        markov = x[:, :, : self.markov_dimension]
 
         out_markov = self.activation(self.input(markov))
 
-        path_dependent = self.x[:, :, self.markov_dimension :]
+        path_dependent = x[:, :, self.markov_dimension :]
         batch_size = path_dependent.size(0)
 
         h0 = self.h0.expand(self.gru_layers, batch_size, self.gru_hidden).contiguous()
