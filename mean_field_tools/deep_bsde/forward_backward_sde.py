@@ -396,6 +396,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
                 "time_process",
                 "brownian_process",
                 "forward_process",
+                "forward_mean_field",
                 "common_noise",
             ]:
                 raise ValueError(
