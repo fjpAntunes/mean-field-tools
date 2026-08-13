@@ -521,6 +521,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
             for name in [
                 "time_process",
                 "forward_process",
+                "foward_mean_field"
                 "common_noise",  # This is a proxy for the mean field dependence, which can be different from the mean.
             ]
         ]
