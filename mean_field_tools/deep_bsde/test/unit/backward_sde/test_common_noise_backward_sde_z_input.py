@@ -31,6 +31,11 @@ def setup(number_of_parameters: int = 0):
     bsde = CommonNoiseBackwardSDE(
         terminal_condition_function=IDENTITY_TERMINAL,
         filtration=filtration,
+        exogenous_process=[
+            "time_process",
+            "forward_process",
+            "common_noise",  # This is a proxy for the mean field dependence, which can be different from the mean.
+        ],
     )
     bsde.initialize_z_approximator()
 

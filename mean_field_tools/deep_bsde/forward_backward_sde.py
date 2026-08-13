@@ -517,13 +517,7 @@ class CommonNoiseBackwardSDE(BackwardSDE):
 
     def set_z_input(self):
         processes = [
-            self.filtration.__dict__.get(name)
-            for name in [
-                "time_process",
-                "forward_process",
-                "foward_mean_field"
-                "common_noise",  # This is a proxy for the mean field dependence, which can be different from the mean.
-            ]
+            self.filtration.__dict__.get(name) for name in self.exogenous_process
         ]
 
         if self.filtration.parameter is not None:

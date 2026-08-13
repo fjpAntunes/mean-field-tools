@@ -24,6 +24,7 @@ Y_t = \sqrt( 1 - \rho^2) W_t + \rho W_t^0
 bsde = CommonNoiseBackwardSDE(
     terminal_condition_function=IDENTITY_TERMINAL,
     filtration=FILTRATION,
+    exogenous_process=["time_process", "forward_process", "common_noise"],
 )
 
 bsde.initialize_approximator()
