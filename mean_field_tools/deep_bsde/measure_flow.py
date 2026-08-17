@@ -166,3 +166,18 @@ class CommonNoiseMeasureFlow(MeasureFlow):
             ]
             mean_field_parametrization = torch.cat(components, dim=2)
         return mean_field_parametrization
+
+    def generate_mean_field_paths(self):
+        input = self._set_elicitability_input()
+        if self._use_single_network:
+                    mean_field_parametrization = self.mean_approximators[0].detached_call(
+                        self.elicitability_input
+                    )
+        else:
+            components = [
+                approx.detached_call(self.elicitability_input)
+                for approx in self.mean_approximators
+            ]
+            mean_field_parametrization = torch.cat(components, dim=2)
+        return mean_field_parametrization
+        
