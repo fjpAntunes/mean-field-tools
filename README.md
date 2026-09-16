@@ -15,13 +15,27 @@ It accompanies the paper [*Deep Learning and Elicitability for McKean-Vlasov FBS
 ## Installation
 
 ```bash
-# Clone the repository
+pip install mean-field-tools
+```
+
+On Linux this pulls the default CUDA build of PyTorch, which is several
+gigabytes. If you only need CPU, install `torch` from the CPU index first and
+`pip` will reuse it:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install mean-field-tools
+```
+
+### From source
+
+```bash
 git clone https://github.com/fjpAntunes/mean-field-tools.git
 cd mean-field-tools
-
-# Install with Poetry
 poetry install
 ```
+
+The Poetry setup resolves CPU-only PyTorch wheels by default.
 
 ## Usage
 
