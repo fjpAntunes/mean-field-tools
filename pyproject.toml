@@ -32,8 +32,11 @@ exclude = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-numpy = "^1.26.4"
-scipy = "^1.13.0"
+# No upper bound: `^` would cap this at <2.0.0, and numpy 1.x ships no wheels
+# for Python >= 3.13, so pip would compile numpy from source on a modern
+# interpreter and downgrade a working numpy 2.x install. Nothing here uses an
+# API that numpy 2 removed.
+numpy = ">=1.26.4"
 matplotlib = "^3.8.4"
 # The `+cpu` local label must not appear here: it is illegal in a PEP 440
 # ordered comparison and would ship malformed metadata to PyPI. The explicit
